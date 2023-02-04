@@ -1,0 +1,85 @@
+//specify the proto version
+syntax = "proto3";
+//the name(or empty)
+package groupChat;
+
+service ChatServer {
+    rpc Login(LoginRequest) returns (LoginResponse){}
+    rpc Join(JoinRequest) returns (JoinResponse){}
+    rpc NewMessage(NewMessageRequest) returns (NewMessageResponse){}
+    rpc Like(LikeRequest) returns (LikeReponse){}
+    rpc RemoveLike(RemoveLikeRequest) returns (RemoveLikeReponse){}
+    rpc ShowHistory(ShowHistoryRequest) returns (ShowHistoryResponse){}
+    rpc ReceiveMessage(ReceiveMessageRequest) returns (stream HistoryMessage){}
+}
+
+
+message LoginRequest{
+    string userName =1;     
+}
+message LoginResponse{
+    string status =1;
+}
+
+
+message JoinRequest{
+    string groupName=1;
+    string userName=2;
+}
+
+message HistoryMessage{
+    int32 id=1;
+    string content=2;
+    int32 numberOfLikes=3;
+}
+message Participant{
+    string userName=1;
+}
+
+message JoinResponse{
+    repeated HistoryMessage messages=1;
+    repeated Participant names=2;
+}
+
+
+message NewMessageRequest{
+    string groupName=1;
+    string messageContent=2;
+    string username=3;
+}
+message NewMessageResponse{
+    string status=1; 
+}
+
+message LikeRequest{
+    string groupName=1;
+    int32 id=2;
+    string username=3;
+}
+message LikeReponse{
+    string status =1;
+}
+
+
+message RemoveLikeRequest{
+    string groupName=1;
+    int32 id=2;
+    string username=3;
+}
+message RemoveLikeReponse{
+    string status=1; 
+}
+
+
+message ShowHistoryRequest{
+    string groupName=1;
+}
+message ShowHistoryResponse{
+    repeated HistoryMessage messages=1;
+}
+
+message ReceiveMessageRequest{
+    string groupName=1;
+}
+
+
