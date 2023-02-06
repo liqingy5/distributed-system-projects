@@ -4,10 +4,26 @@ A simple group chat server/client implemented with [gRPC](https://grpc.io) in Py
 
 ## Prerequisites
 
-- Python 3.7 or higher
-- pip version 9.0.1 or higher
+- Python 3.11.1
+- pip 22.3.1
 
-### gRPC
+### Set up virtual environment
+
+```Bash
+python -m venv env
+```
+
+```Bash
+source env/bin/activate
+```
+
+### Install dependencies
+
+```Bash
+pip install -r requirements.txt.
+```
+
+<!-- ### gRPC
 
 ```Bash
 python -m pip install grpcio
@@ -17,10 +33,10 @@ python -m pip install grpcio
 
 ```Bash
 python -m pip install grpcio-tools
-```
+``` -->
 
 ## Generate gRPC code
 
 ```Bash
-python -m grpc_tools.protoc -I./protos --python_out=. --pyi_out=. --grpc_python_out=. ./protos/groupChat.proto
+source generate_proto.sh
 ```
