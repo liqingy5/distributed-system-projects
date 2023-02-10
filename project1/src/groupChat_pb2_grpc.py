@@ -14,83 +14,17 @@ class ChatServerStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.Login = channel.unary_unary(
-                '/groupChat.ChatServer/Login',
-                request_serializer=groupChat__pb2.LoginRequest.SerializeToString,
-                response_deserializer=groupChat__pb2.LoginResponse.FromString,
-                )
-        self.Join = channel.unary_unary(
-                '/groupChat.ChatServer/Join',
-                request_serializer=groupChat__pb2.JoinRequest.SerializeToString,
-                response_deserializer=groupChat__pb2.JoinResponse.FromString,
-                )
-        self.NewMessage = channel.unary_unary(
-                '/groupChat.ChatServer/NewMessage',
-                request_serializer=groupChat__pb2.NewMessageRequest.SerializeToString,
-                response_deserializer=groupChat__pb2.NewMessageResponse.FromString,
-                )
-        self.Like = channel.unary_unary(
-                '/groupChat.ChatServer/Like',
-                request_serializer=groupChat__pb2.LikeRequest.SerializeToString,
-                response_deserializer=groupChat__pb2.LikeReponse.FromString,
-                )
-        self.RemoveLike = channel.unary_unary(
-                '/groupChat.ChatServer/RemoveLike',
-                request_serializer=groupChat__pb2.RemoveLikeRequest.SerializeToString,
-                response_deserializer=groupChat__pb2.RemoveLikeReponse.FromString,
-                )
-        self.ShowHistory = channel.unary_unary(
-                '/groupChat.ChatServer/ShowHistory',
-                request_serializer=groupChat__pb2.ShowHistoryRequest.SerializeToString,
-                response_deserializer=groupChat__pb2.ShowHistoryResponse.FromString,
-                )
-        self.ReceiveMessage = channel.unary_stream(
-                '/groupChat.ChatServer/ReceiveMessage',
-                request_serializer=groupChat__pb2.ReceiveMessageRequest.SerializeToString,
-                response_deserializer=groupChat__pb2.HistoryMessage.FromString,
+        self.chatFunction = channel.stream_stream(
+                '/groupChat.ChatServer/chatFunction',
+                request_serializer=groupChat__pb2.ChatInput.SerializeToString,
+                response_deserializer=groupChat__pb2.ChatOutput.FromString,
                 )
 
 
 class ChatServerServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def Login(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def Join(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def NewMessage(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def Like(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def RemoveLike(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def ShowHistory(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def ReceiveMessage(self, request, context):
+    def chatFunction(self, request_iterator, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -99,40 +33,10 @@ class ChatServerServicer(object):
 
 def add_ChatServerServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'Login': grpc.unary_unary_rpc_method_handler(
-                    servicer.Login,
-                    request_deserializer=groupChat__pb2.LoginRequest.FromString,
-                    response_serializer=groupChat__pb2.LoginResponse.SerializeToString,
-            ),
-            'Join': grpc.unary_unary_rpc_method_handler(
-                    servicer.Join,
-                    request_deserializer=groupChat__pb2.JoinRequest.FromString,
-                    response_serializer=groupChat__pb2.JoinResponse.SerializeToString,
-            ),
-            'NewMessage': grpc.unary_unary_rpc_method_handler(
-                    servicer.NewMessage,
-                    request_deserializer=groupChat__pb2.NewMessageRequest.FromString,
-                    response_serializer=groupChat__pb2.NewMessageResponse.SerializeToString,
-            ),
-            'Like': grpc.unary_unary_rpc_method_handler(
-                    servicer.Like,
-                    request_deserializer=groupChat__pb2.LikeRequest.FromString,
-                    response_serializer=groupChat__pb2.LikeReponse.SerializeToString,
-            ),
-            'RemoveLike': grpc.unary_unary_rpc_method_handler(
-                    servicer.RemoveLike,
-                    request_deserializer=groupChat__pb2.RemoveLikeRequest.FromString,
-                    response_serializer=groupChat__pb2.RemoveLikeReponse.SerializeToString,
-            ),
-            'ShowHistory': grpc.unary_unary_rpc_method_handler(
-                    servicer.ShowHistory,
-                    request_deserializer=groupChat__pb2.ShowHistoryRequest.FromString,
-                    response_serializer=groupChat__pb2.ShowHistoryResponse.SerializeToString,
-            ),
-            'ReceiveMessage': grpc.unary_stream_rpc_method_handler(
-                    servicer.ReceiveMessage,
-                    request_deserializer=groupChat__pb2.ReceiveMessageRequest.FromString,
-                    response_serializer=groupChat__pb2.HistoryMessage.SerializeToString,
+            'chatFunction': grpc.stream_stream_rpc_method_handler(
+                    servicer.chatFunction,
+                    request_deserializer=groupChat__pb2.ChatInput.FromString,
+                    response_serializer=groupChat__pb2.ChatOutput.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -145,7 +49,7 @@ class ChatServer(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def Login(request,
+    def chatFunction(request_iterator,
             target,
             options=(),
             channel_credentials=None,
@@ -155,110 +59,8 @@ class ChatServer(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/groupChat.ChatServer/Login',
-            groupChat__pb2.LoginRequest.SerializeToString,
-            groupChat__pb2.LoginResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def Join(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/groupChat.ChatServer/Join',
-            groupChat__pb2.JoinRequest.SerializeToString,
-            groupChat__pb2.JoinResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def NewMessage(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/groupChat.ChatServer/NewMessage',
-            groupChat__pb2.NewMessageRequest.SerializeToString,
-            groupChat__pb2.NewMessageResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def Like(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/groupChat.ChatServer/Like',
-            groupChat__pb2.LikeRequest.SerializeToString,
-            groupChat__pb2.LikeReponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def RemoveLike(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/groupChat.ChatServer/RemoveLike',
-            groupChat__pb2.RemoveLikeRequest.SerializeToString,
-            groupChat__pb2.RemoveLikeReponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def ShowHistory(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/groupChat.ChatServer/ShowHistory',
-            groupChat__pb2.ShowHistoryRequest.SerializeToString,
-            groupChat__pb2.ShowHistoryResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def ReceiveMessage(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_stream(request, target, '/groupChat.ChatServer/ReceiveMessage',
-            groupChat__pb2.ReceiveMessageRequest.SerializeToString,
-            groupChat__pb2.HistoryMessage.FromString,
+        return grpc.experimental.stream_stream(request_iterator, target, '/groupChat.ChatServer/chatFunction',
+            groupChat__pb2.ChatInput.SerializeToString,
+            groupChat__pb2.ChatOutput.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
