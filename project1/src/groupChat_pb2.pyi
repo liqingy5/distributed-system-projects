@@ -30,3 +30,7 @@ class ChatOutput(_message.Message):
     messages: _containers.RepeatedCompositeFieldContainer[ChatMessage]
     status: str
     def __init__(self, status: _Optional[str] = ..., messages: _Optional[_Iterable[_Union[ChatMessage, _Mapping]]] = ...) -> None: ...
+
+class Empty(_message.Message):
+    __slots__ = []
+    def __init__(self) -> None: ...
