@@ -30,12 +30,14 @@ class ChatMessage(_message.Message):
     def __init__(self, id: _Optional[int] = ..., content: _Optional[str] = ..., numberOfLikes: _Optional[int] = ...) -> None: ...
 
 class ChatOutput(_message.Message):
-    __slots__ = ["messages", "status"]
+    __slots__ = ["messages", "status", "user"]
     MESSAGES_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
+    USER_FIELD_NUMBER: _ClassVar[int]
     messages: _containers.RepeatedCompositeFieldContainer[ChatMessage]
     status: str
-    def __init__(self, status: _Optional[str] = ..., messages: _Optional[_Iterable[_Union[ChatMessage, _Mapping]]] = ...) -> None: ...
+    user: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, status: _Optional[str] = ..., messages: _Optional[_Iterable[_Union[ChatMessage, _Mapping]]] = ..., user: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class Empty(_message.Message):
     __slots__ = []

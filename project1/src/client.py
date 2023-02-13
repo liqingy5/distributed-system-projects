@@ -81,7 +81,7 @@ class Client:
                             print("Entering group: " + self.groupName)
                             # Thread for listening to server messages
                             self.listen_thread = threading.Thread(
-                                target=self.listen)
+                                target=self.listen, daemon=True)
                             self.listen_thread.start()
                         else:
                             print("Join chat group failed, please try again")
