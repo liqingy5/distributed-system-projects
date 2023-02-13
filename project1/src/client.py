@@ -17,8 +17,8 @@ COMMANDS = {
     "j": 2,  # join
     "a": 3,  # chat
     "l": 4,  # like
-    "r": 5,  # dislike
-    "p": 6  # history
+    "r": 5  # dislike
+    # "p": 6  # history
 }
 
 
@@ -28,10 +28,11 @@ class Client:
         self.stub = groupChat_pb2_grpc.ChatServerStub(self.channel)
         self.loginName = None
         self.groupName = None
-        self.participants = None
+        self.listen_thread = None
 
     # Getting user input and sending messages to server
     def send(self):
+        print("Client started \nType 'u <username>' to login, 'j <groupname>' to join a group, 'a <message>' to chat, 'l <message_id>' to like a message, 'r <message_id>' to dislike a message, 'p' to get history, 'q' to quit")
         self.input()
 
     # Getting terminal line input and split to id and message, return the ChatInput
@@ -40,56 +41,97 @@ class Client:
             try:
                 inputs = input().split(maxsplit=1)
                 if (len(inputs) == 1):
-                    if (inputs[0] == "q"):
+                    _com = inputs[0]
+                    _message = ""
+
+                    if (_com == "q"):
+                        if (self.loginName == None and self.groupName == None):
+                            break
+                        self.stub.chatFunction(groupChat_pb2.ChatInput(
+                            type=7, message=_message, userName=self.loginName, groupName=self.loginName, messageId=0))
                         break
+                    elif (_com == 'p'):
+                        if (self.loginName == None or self.groupName == None):
+                            print("Please login and join a group first")
+                            continue
+                        response = self.stub.chatFunction(groupChat_pb2.ChatInput(
+                            userName=self.loginName, groupName=self.groupName, type=6, message="", messageId=0))
+                        # self.output(response)
                     else:
                         raise ValueError
-                _com, _message = inputs
+                else:
+                    _com, _message = inputs
+                    _type = COMMANDS.get(_com, None)
+                    if not _type:
+                        print("Invalid command")
+                        continue
+                    if _type == 1:
+                        response = self.stub.chatFunction(groupChat_pb2.ChatInput(
+                            type=_type, message=_message, userName=_message, groupName="", messageId=0))
+                        if (response.status == "success"):
+                            self.loginName = _message
+                            print("Login as: " + self.loginName)
+                        else:
+                            print("Login failed, please try again")
+                    elif _type == 2 and self.loginName is not None:
+                        response = self.stub.chatFunction(groupChat_pb2.ChatInput(
+                            type=_type, message=_message, userName=self.loginName, groupName=_message, messageId=0))
+                        if (response.status == "success"):
+                            self.groupName = _message
+                            print("Entering group: " + self.groupName)
+                            # Thread for listening to server messages
+                            self.listen_thread = threading.Thread(
+                                target=self.listen)
+                            self.listen_thread.start()
+                        else:
+                            print("Join chat group failed, please try again")
+                    elif self.loginName is not None and self.groupName is not None:
+                        if _type == 3:
+                            response = self.stub.chatFunction(groupChat_pb2.ChatInput(
+                                type=_type, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0))
+                            # if (response.status == "success"):
+                            #     self.output(response)
+                        elif _type == 4:
+                            response = self.stub.chatFunction(groupChat_pb2.ChatInput(
+                                type=_type, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0))
+                            # if (response.status == "success" and len(response.messages) > 0):
+                            #     self.output(response)
+                        elif _type == 5:
+                            response = self.stub.chatFunction(groupChat_pb2.ChatInput(
+                                type=_type, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0))
+                            # if (response.status == "success" and len(response.messages) > 0):
+                            #     self.output(response)
+                        else:
+                            print("Internal error,plesae try again")
+                    else:
+                        if (self.loginName == None):
+                            print("Please login first")
+                        elif (self.groupName == None):
+                            print("Please join a group first")
+
             except ValueError:
                 print(
                     "Invalid input format. Please enter a command followed by a message.")
                 continue
-            _type = COMMANDS.get(_com, None)
-            if not _type:
-                print("Invalid command")
-                continue
-            if _type == 1:
-                self.loginName = _message
-                print("Login as: " + self.loginName)
-                self.stub.chatFunction(groupChat_pb2.ChatInput(type=_type, message=_message, userName=self.loginName, groupName="", messageId=0))
-            elif _type == 2:
-                self.groupName = _message
-                print("Entering group: " + self.groupName)
-                self.stub.chatFunction(groupChat_pb2.ChatInput(type=_type, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0))
-                # Thread for listening to server messages
-                listen_thread = threading.Thread(target=self.listen)
-                listen_thread.start()
-            elif _type == 3:
-                self.stub.chatFunction(groupChat_pb2.ChatInput(type=_type, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0))
-            else:
-                if self.loginName == None:
-                    print("Please login first")
-                elif self.groupName == None:
-                    print("Please join a group first")
-                else:
-                    print("error")
 
         print("Exiting...")
+        self.listen_thread.stop()
+        self.listen_thread.join()
         self.channel.close()
         exit()
 
     # listening to server messages
     def listen(self):
-        while True:
-            for r in self.stub.getMessages(groupChat_pb2.ChatInput(userName=self.loginName, groupName=self.groupName, type=0, message="", messageId=0)):
-                print("Message from server: {0}. {1} {2: >10}".format(
-                    r.id, r.content, r.numberOfLikes))
+        print("Group: ", self.groupName)
+        for r in self.stub.getMessages(groupChat_pb2.ChatInput(userName=self.loginName, groupName=self.groupName, type=0, message="", messageId=0)):
+            print("{0}. user who sent this message: {1} {2: >10}".format(
+                r.id, r.content, r.numberOfLikes))
 
     # output messages from server
     def output(self, response):
         print(response.status)
         for message in response.messages:
-            print("Message from server: {0}. {1} {2: >10}".format(
+            print("Message from server: {0}. {1} likes: {2: >10}".format(
                 message.id, message.content, message.numberOfLikes))
 
 
