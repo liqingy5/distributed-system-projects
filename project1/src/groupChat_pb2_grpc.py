@@ -14,14 +14,14 @@ class ChatServerStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.chatFunction = channel.stream_unary(
+        self.chatFunction = channel.unary_unary(
                 '/groupChat.ChatServer/chatFunction',
                 request_serializer=groupChat__pb2.ChatInput.SerializeToString,
                 response_deserializer=groupChat__pb2.ChatOutput.FromString,
                 )
         self.getMessages = channel.unary_stream(
                 '/groupChat.ChatServer/getMessages',
-                request_serializer=groupChat__pb2.Empty.SerializeToString,
+                request_serializer=groupChat__pb2.ChatInput.SerializeToString,
                 response_deserializer=groupChat__pb2.ChatMessage.FromString,
                 )
 
@@ -29,7 +29,7 @@ class ChatServerStub(object):
 class ChatServerServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def chatFunction(self, request_iterator, context):
+    def chatFunction(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -44,14 +44,14 @@ class ChatServerServicer(object):
 
 def add_ChatServerServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'chatFunction': grpc.stream_unary_rpc_method_handler(
+            'chatFunction': grpc.unary_unary_rpc_method_handler(
                     servicer.chatFunction,
                     request_deserializer=groupChat__pb2.ChatInput.FromString,
                     response_serializer=groupChat__pb2.ChatOutput.SerializeToString,
             ),
             'getMessages': grpc.unary_stream_rpc_method_handler(
                     servicer.getMessages,
-                    request_deserializer=groupChat__pb2.Empty.FromString,
+                    request_deserializer=groupChat__pb2.ChatInput.FromString,
                     response_serializer=groupChat__pb2.ChatMessage.SerializeToString,
             ),
     }
@@ -65,7 +65,7 @@ class ChatServer(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def chatFunction(request_iterator,
+    def chatFunction(request,
             target,
             options=(),
             channel_credentials=None,
@@ -75,7 +75,7 @@ class ChatServer(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.stream_unary(request_iterator, target, '/groupChat.ChatServer/chatFunction',
+        return grpc.experimental.unary_unary(request, target, '/groupChat.ChatServer/chatFunction',
             groupChat__pb2.ChatInput.SerializeToString,
             groupChat__pb2.ChatOutput.FromString,
             options, channel_credentials,
@@ -93,7 +93,7 @@ class ChatServer(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_stream(request, target, '/groupChat.ChatServer/getMessages',
-            groupChat__pb2.Empty.SerializeToString,
+            groupChat__pb2.ChatInput.SerializeToString,
             groupChat__pb2.ChatMessage.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

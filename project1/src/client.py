@@ -4,6 +4,7 @@ import groupChat_pb2_grpc
 import logging
 import threading
 import time
+import json
 
 
 address = 'localhost'
@@ -31,11 +32,7 @@ class Client:
 
     # Getting user input and sending messages to server
     def send(self):
-        response = self.stub.chatFunction(self.input())
-        # self.output(response)
-        print(response)
-        for message in response:
-            print(message)
+        self.input()
 
     # Getting terminal line input and split to id and message, return the ChatInput
     def input(self):
@@ -59,16 +56,23 @@ class Client:
             if _type == 1:
                 self.loginName = _message
                 print("Login as: " + self.loginName)
+                self.stub.chatFunction(groupChat_pb2.ChatInput(type=_type, message=_message, userName=self.loginName, groupName="", messageId=0))
             elif _type == 2:
                 self.groupName = _message
                 print("Entering group: " + self.groupName)
+                self.stub.chatFunction(groupChat_pb2.ChatInput(type=_type, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0))
+                # Thread for listening to server messages
+                listen_thread = threading.Thread(target=self.listen)
+                listen_thread.start()
+            elif _type == 3:
+                self.stub.chatFunction(groupChat_pb2.ChatInput(type=_type, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0))
             else:
                 if self.loginName == None:
                     print("Please login first")
                 elif self.groupName == None:
                     print("Please join a group first")
                 else:
-                    yield groupChat_pb2.ChatInput(type=_type, message=_message)
+                    print("error")
 
         print("Exiting...")
         self.channel.close()
@@ -77,8 +81,7 @@ class Client:
     # listening to server messages
     def listen(self):
         while True:
-            response = self.stub.getMessages(groupChat_pb2.Empty())
-            for r in response:
+            for r in self.stub.getMessages(groupChat_pb2.ChatInput(userName=self.loginName, groupName=self.groupName, type=0, message="", messageId=0)):
                 print("Message from server: {0}. {1} {2: >10}".format(
                     r.id, r.content, r.numberOfLikes))
 
@@ -95,12 +98,8 @@ def run():
 
     # Thread for sending messages to server
     input_thread = threading.Thread(target=client.send)
-    # Thread for listening to server messages
-    listen_thread = threading.Thread(target=client.listen)
     input_thread.start()
-    listen_thread.start()
     input_thread.join()
-    listen_thread.join()
 
 
 if __name__ == '__main__':
