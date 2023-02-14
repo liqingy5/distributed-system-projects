@@ -17,8 +17,8 @@ COMMANDS = {
     "j": 2,  # join
     "a": 3,  # chat
     "l": 4,  # like
-    "r": 5  # dislike
-    # "p": 6  # history
+    "r": 5,  # dislike
+    "p": 6   # history
 }
 
 
@@ -47,8 +47,8 @@ class Client:
                     if (_com == "q"):
                         if (self.loginName == None and self.groupName == None):
                             break
-                        self.stub.chatFunction(groupChat_pb2.ChatInput(
-                            type=7, message=_message, userName=self.loginName, groupName=self.loginName, messageId=0))
+                        response = self.stub.chatFunction(groupChat_pb2.ChatInput(
+                            type=7, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0))
                         break
                     elif (_com == 'p'):
                         if (self.loginName == None or self.groupName == None):
@@ -56,7 +56,7 @@ class Client:
                             continue
                         response = self.stub.chatFunction(groupChat_pb2.ChatInput(
                             userName=self.loginName, groupName=self.groupName, type=6, message="", messageId=0))
-                        # self.output(response)
+                        self.output(response)
                     else:
                         raise ValueError
                 else:
@@ -89,18 +89,24 @@ class Client:
                         if _type == 3:
                             response = self.stub.chatFunction(groupChat_pb2.ChatInput(
                                 type=_type, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0))
-                            # if (response.status == "success"):
-                            #     self.output(response)
                         elif _type == 4:
+                            try:
+                                _msgId = int(_message)
+                            except ValueError:
+                                print("Error type")
                             response = self.stub.chatFunction(groupChat_pb2.ChatInput(
-                                type=_type, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0))
-                            # if (response.status == "success" and len(response.messages) > 0):
-                            #     self.output(response)
+                                type=_type, message="", userName=self.loginName, groupName=self.groupName, messageId=_msgId))
+                            if (response.status == "success" and len(response.messages) > 0):
+                                self.output(response)
                         elif _type == 5:
+                            try:
+                                _msgId = int(_message)
+                            except ValueError:
+                                print("Error type")
                             response = self.stub.chatFunction(groupChat_pb2.ChatInput(
-                                type=_type, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0))
-                            # if (response.status == "success" and len(response.messages) > 0):
-                            #     self.output(response)
+                                type=_type, message="", userName=self.loginName, groupName=self.groupName, messageId=_msgId))
+                            if (response.status == "success" and len(response.messages) > 0):
+                                self.output(response)
                         else:
                             print("Internal error,plesae try again")
                     else:
@@ -124,15 +130,14 @@ class Client:
     def listen(self):
         print("Group: ", self.groupName)
         for r in self.stub.getMessages(groupChat_pb2.ChatInput(userName=self.loginName, groupName=self.groupName, type=0, message="", messageId=0)):
-            print("{0}. user who sent this message: {1} {2: >10}".format(
-                r.id, r.content, r.numberOfLikes))
+            print("{0}. {1} sent this message: {2} {3: >10}".format(
+                r.id, r.user, r.content, r.numberOfLikes))
 
     # output messages from server
     def output(self, response):
-        print(response.status)
         for message in response.messages:
-            print("Message from server: {0}. {1} likes: {2: >10}".format(
-                message.id, message.content, message.numberOfLikes))
+            print("Message from server: {0}. {1} {2} likes: {3: >10}".format(
+                message.id, message.user, message.content, message.numberOfLikes))
 
 
 def run():

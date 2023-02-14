@@ -5,7 +5,6 @@ import threading
 import groupChat_pb2
 import groupChat_pb2_grpc
 from concurrent import futures
-import json
 
 # Chat room class to store information about a chat room
 class ChatRoom:
@@ -18,14 +17,26 @@ class ChatRoom:
         self.messages.append(message)
     
     def add_like(self, user, message_id):
-        message = self.messages[message_id]
+        if message_id in range(len(self.messages)):
+            message = self.messages[message_id]
+        else:
+            return False
         if user != message.user and user not in message.likes:
             message.likes.add(user)
+            return True
+        else:
+            return False
     
     def remove_like(self, user, message_id):
-        message = self.messages[message_id]
+        if message_id in range(len(self.messages)):
+            message = self.messages[message_id]
+        else:
+            return False
         if user in message.likes:
             message.likes.remove(user)
+            return True
+        else:
+            return False
 
 class ChatMessage:
     def __init__(self, id, user, message):
@@ -41,11 +52,11 @@ class ChatService(groupChat_pb2_grpc.ChatServerServicer):
 
     def chatFunction(self, request, context):
         #type 1: login, 2: join, 3: chat, 4: like, 5: dislike, 6: history
-        print(request)
         try:
             _type = request.type
         except ValueError:
             print("Error type")
+        print(_type)
         if _type == 1:
             self.users.add(request.userName)
             return groupChat_pb2.ChatOutput(status="success", messages=[])
@@ -59,25 +70,28 @@ class ChatService(groupChat_pb2_grpc.ChatServerServicer):
             chatRoom.add_message(ChatMessage(len(chatRoom.messages), request.userName, request.message))
             msg_list = []
             for message in chatRoom.messages[-10:]:
-                msg_list.append(groupChat_pb2.ChatMessage(id=message.id, content=message.message, numberOfLikes=len(message.likes)))
+                msg_list.append(groupChat_pb2.ChatMessage(id=message.id, user=message.user, content=message.message, numberOfLikes=len(message.likes)))
             return groupChat_pb2.ChatOutput(status="success", messages=msg_list)
         elif _type == 4:
+            print(request)
             chatRoom = self.groups[request.groupName]
-            chatRoom.add_like(request.userName, request.messageId)
+            if not chatRoom.add_like(request.userName, request.messageId):
+                return groupChat_pb2.ChatOutput(status="success", messages=[])
             if request.messageId > len(chatRoom.messages) - 10:
                 msg_list = []
                 for message in chatRoom.messages[-10:]:
-                    msg_list.append(groupChat_pb2.ChatMessage(id=message.id, content=message.message, numberOfLikes=len(message.likes)))
+                    msg_list.append(groupChat_pb2.ChatMessage(id=message.id, user=message.user, content=message.message, numberOfLikes=len(message.likes)))
                 return groupChat_pb2.ChatOutput(status="success", messages=msg_list)
             else:
                 return groupChat_pb2.ChatOutput(status="success", messages=[])
         elif _type == 5:
             chatRoom = self.groups[request.groupName]
-            message.remove_like(request.userName, request.messageId)
+            if not chatRoom.remove_like(request.userName, request.messageId):
+                return groupChat_pb2.ChatOutput(status="success", messages=[])
             if request.messageId > len(chatRoom.messages) - 10:
                 msg_list = []
                 for message in chatRoom.messages[-10:]:
-                    msg_list.append(groupChat_pb2.ChatMessage(id=message.id, content=message.message, numberOfLikes=len(message.likes)))
+                    msg_list.append(groupChat_pb2.ChatMessage(id=message.id, user=message.user, content=message.message, numberOfLikes=len(message.likes)))
                 return groupChat_pb2.ChatOutput(status="success", messages=msg_list)
             else:
                 return groupChat_pb2.ChatOutput(status="success", messages=[])
@@ -86,7 +100,7 @@ class ChatService(groupChat_pb2_grpc.ChatServerServicer):
             message = chatRoom.messages
             msg_list = []
             for message in chatRoom.messages:
-                msg_list.append(groupChat_pb2.ChatMessage(id=message.id, content=message.message, numberOfLikes=len(message.likes)))
+                msg_list.append(groupChat_pb2.ChatMessage(id=message.id, user=message.user, content=message.message, numberOfLikes=len(message.likes)))
             return groupChat_pb2.ChatOutput(status="success", messages=msg_list)
         elif _type == 7:
             self.users.remove(request.userName)
@@ -102,7 +116,7 @@ class ChatService(groupChat_pb2_grpc.ChatServerServicer):
             if len(chatRoom.messages) > lastId:
                 lastId = len(chatRoom.messages)
                 for message in chatRoom.messages[-10:]:
-                    yield groupChat_pb2.ChatMessage(id=message.id, content=message.message, numberOfLikes=len(message.likes))
+                    yield groupChat_pb2.ChatMessage(id=message.id, user=message.user, content=message.message, numberOfLikes=len(message.likes))
 
 def start_server(port: int):
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))

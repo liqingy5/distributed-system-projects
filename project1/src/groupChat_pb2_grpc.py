@@ -19,11 +19,6 @@ class ChatServerStub(object):
                 request_serializer=groupChat__pb2.ChatInput.SerializeToString,
                 response_deserializer=groupChat__pb2.ChatOutput.FromString,
                 )
-        self.registerClient = channel.unary_unary(
-                '/groupChat.ChatServer/registerClient',
-                request_serializer=groupChat__pb2.Empty.SerializeToString,
-                response_deserializer=groupChat__pb2.Empty.FromString,
-                )
         self.getMessages = channel.unary_stream(
                 '/groupChat.ChatServer/getMessages',
                 request_serializer=groupChat__pb2.ChatInput.SerializeToString,
@@ -35,12 +30,6 @@ class ChatServerServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def chatFunction(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def registerClient(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -59,11 +48,6 @@ def add_ChatServerServicer_to_server(servicer, server):
                     servicer.chatFunction,
                     request_deserializer=groupChat__pb2.ChatInput.FromString,
                     response_serializer=groupChat__pb2.ChatOutput.SerializeToString,
-            ),
-            'registerClient': grpc.unary_unary_rpc_method_handler(
-                    servicer.registerClient,
-                    request_deserializer=groupChat__pb2.Empty.FromString,
-                    response_serializer=groupChat__pb2.Empty.SerializeToString,
             ),
             'getMessages': grpc.unary_stream_rpc_method_handler(
                     servicer.getMessages,
@@ -94,23 +78,6 @@ class ChatServer(object):
         return grpc.experimental.unary_unary(request, target, '/groupChat.ChatServer/chatFunction',
             groupChat__pb2.ChatInput.SerializeToString,
             groupChat__pb2.ChatOutput.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def registerClient(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/groupChat.ChatServer/registerClient',
-            groupChat__pb2.Empty.SerializeToString,
-            groupChat__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

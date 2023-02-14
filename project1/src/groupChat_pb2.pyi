@@ -20,14 +20,16 @@ class ChatInput(_message.Message):
     def __init__(self, userName: _Optional[str] = ..., groupName: _Optional[str] = ..., type: _Optional[int] = ..., message: _Optional[str] = ..., messageId: _Optional[int] = ...) -> None: ...
 
 class ChatMessage(_message.Message):
-    __slots__ = ["content", "id", "numberOfLikes"]
+    __slots__ = ["content", "id", "numberOfLikes", "user"]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     NUMBEROFLIKES_FIELD_NUMBER: _ClassVar[int]
+    USER_FIELD_NUMBER: _ClassVar[int]
     content: str
     id: int
     numberOfLikes: int
-    def __init__(self, id: _Optional[int] = ..., content: _Optional[str] = ..., numberOfLikes: _Optional[int] = ...) -> None: ...
+    user: str
+    def __init__(self, id: _Optional[int] = ..., user: _Optional[str] = ..., content: _Optional[str] = ..., numberOfLikes: _Optional[int] = ...) -> None: ...
 
 class ChatOutput(_message.Message):
     __slots__ = ["messages", "status", "user"]

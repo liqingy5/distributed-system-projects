@@ -5,7 +5,6 @@ package groupChat;
 
 service ChatServer {
     rpc chatFunction(ChatInput) returns (ChatOutput) {}
-    rpc registerClient(Empty) returns (Empty) {}
     rpc getMessages(ChatInput) returns (stream ChatMessage) {}
 }
 
@@ -26,8 +25,9 @@ message ChatOutput {
 
 message ChatMessage{
     int32 id = 1;
-    string content = 2;
-    int32 numberOfLikes = 3;
+    string user = 2;
+    string content = 3;
+    int32 numberOfLikes = 4;
 }
 
 message Empty{

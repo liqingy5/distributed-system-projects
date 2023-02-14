@@ -13,7 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0fgroupChat.proto\x12\tgroupChat\"b\n\tChatInput\x12\x10\n\x08userName\x18\x01 \x01(\t\x12\x11\n\tgroupName\x18\x02 \x01(\t\x12\x0c\n\x04type\x18\x03 \x01(\x05\x12\x0f\n\x07message\x18\x04 \x01(\t\x12\x11\n\tmessageId\x18\x05 \x01(\x05\"T\n\nChatOutput\x12\x0e\n\x06status\x18\x01 \x01(\t\x12(\n\x08messages\x18\x02 \x03(\x0b\x32\x16.groupChat.ChatMessage\x12\x0c\n\x04user\x18\x03 \x03(\t\"A\n\x0b\x43hatMessage\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x0f\n\x07\x63ontent\x18\x02 \x01(\t\x12\x15\n\rnumberOfLikes\x18\x03 \x01(\x05\"\x07\n\x05\x45mpty2\xc4\x01\n\nChatServer\x12=\n\x0c\x63hatFunction\x12\x14.groupChat.ChatInput\x1a\x15.groupChat.ChatOutput\"\x00\x12\x36\n\x0eregisterClient\x12\x10.groupChat.Empty\x1a\x10.groupChat.Empty\"\x00\x12?\n\x0bgetMessages\x12\x14.groupChat.ChatInput\x1a\x16.groupChat.ChatMessage\"\x00\x30\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0fgroupChat.proto\x12\tgroupChat\"b\n\tChatInput\x12\x10\n\x08userName\x18\x01 \x01(\t\x12\x11\n\tgroupName\x18\x02 \x01(\t\x12\x0c\n\x04type\x18\x03 \x01(\x05\x12\x0f\n\x07message\x18\x04 \x01(\t\x12\x11\n\tmessageId\x18\x05 \x01(\x05\"T\n\nChatOutput\x12\x0e\n\x06status\x18\x01 \x01(\t\x12(\n\x08messages\x18\x02 \x03(\x0b\x32\x16.groupChat.ChatMessage\x12\x0c\n\x04user\x18\x03 \x03(\t\"O\n\x0b\x43hatMessage\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x0c\n\x04user\x18\x02 \x01(\t\x12\x0f\n\x07\x63ontent\x18\x03 \x01(\t\x12\x15\n\rnumberOfLikes\x18\x04 \x01(\x05\"\x07\n\x05\x45mpty2\x8c\x01\n\nChatServer\x12=\n\x0c\x63hatFunction\x12\x14.groupChat.ChatInput\x1a\x15.groupChat.ChatOutput\"\x00\x12?\n\x0bgetMessages\x12\x14.groupChat.ChatInput\x1a\x16.groupChat.ChatMessage\"\x00\x30\x01\x62\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'groupChat_pb2', globals())
@@ -25,9 +25,9 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _CHATOUTPUT._serialized_start=130
   _CHATOUTPUT._serialized_end=214
   _CHATMESSAGE._serialized_start=216
-  _CHATMESSAGE._serialized_end=281
-  _EMPTY._serialized_start=283
-  _EMPTY._serialized_end=290
-  _CHATSERVER._serialized_start=293
-  _CHATSERVER._serialized_end=489
+  _CHATMESSAGE._serialized_end=295
+  _EMPTY._serialized_start=297
+  _EMPTY._serialized_end=304
+  _CHATSERVER._serialized_start=307
+  _CHATSERVER._serialized_end=447
 # @@protoc_insertion_point(module_scope)
