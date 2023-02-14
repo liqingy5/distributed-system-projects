@@ -136,8 +136,13 @@ class Client:
     def listen(self):
         for r in self.stub.getMessages(groupChat_pb2.ChatInput(
                 userName=self.loginName, groupName=self.groupName, type=0, message="", messageId=0, uuid=self.uuid)):
+            # -999 means the client has request to disconnect, stop the thread for listening
             if r.id == -999:
                 break
+            # -998 means there is a changed in participant members, print current participants
+            if r.id == -998:
+                print("Participants: "+r.user)
+                continue
             print("{0}. {1}: {2} {3: >10}".format(
                 r.id, r.user, r.content, r.numberOfLikes > 0 and "likes: "+str(r.numberOfLikes) or ""))
 

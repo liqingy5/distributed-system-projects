@@ -15,11 +15,11 @@ class ChatRoom:
         self.users = {}
         self.messages = []
 
-    #add an user, the key is uuid and the value is username
+    # add an user, the key is uuid and the value is username
     def add_user(self, user, id):
         self.users[id] = user
 
-    #remove an user, just remove the certain uuid's user, if there are two same username in a group, only remove one of them
+    # remove an user, just remove the certain uuid's user, if there are two same username in a group, only remove one of them
     def remove_user(self, id):
         del self.users[id]
 
@@ -50,7 +50,9 @@ class ChatRoom:
         else:
             return False
 
-#For every message, there is a message id, user who wrote it, message content and a set of data who liked it
+# For every message, there is a message id, user who wrote it, message content and a set of data who liked it
+
+
 class ChatMessage:
     def __init__(self, id, user, message):
         self.id = id
@@ -74,7 +76,7 @@ class ChatService(groupChat_pb2_grpc.ChatServerServicer):
         if _type == 1:
             return groupChat_pb2.ChatOutput(status="success", messages=[])
         elif _type == 2:
-            #if the user joined another group, we need to remove it from that group
+            # if the user joined another group, we need to remove it from that group
             if request.uuid in self.users and self.users[request.uuid] in self.groups:
                 self.groups[self.users[request.uuid]].remove_user(request.uuid)
             if request.groupName not in self.groups.keys():
@@ -85,13 +87,14 @@ class ChatService(groupChat_pb2_grpc.ChatServerServicer):
             return groupChat_pb2.ChatOutput(status="success", messages=[], user=list(set(self.groups[request.groupName].users.values())))
         elif _type == 3:
             chatRoom = self.groups[request.groupName]
-            chatRoom.add_message(ChatMessage(len(chatRoom.messages) + 1, request.userName, request.message))
+            chatRoom.add_message(ChatMessage(
+                len(chatRoom.messages) + 1, request.userName, request.message))
             return groupChat_pb2.ChatOutput(status="success", messages=[])
         elif _type == 4:
             chatRoom = self.groups[request.groupName]
             if not chatRoom.add_like(request.userName, request.messageId):
                 return groupChat_pb2.ChatOutput(status="success", messages=[])
-            #only when the message user liked is within lastest 10 message, we need to refresh the message list
+            # only when the message user liked is within lastest 10 message, we need to refresh the message list
             if request.messageId > len(chatRoom.messages) - 10:
                 for element in self.lastId:
                     if self.lastId[element] > 0:
@@ -122,17 +125,26 @@ class ChatService(groupChat_pb2_grpc.ChatServerServicer):
 
     def getMessages(self, request, context):
         self.lastId[request.uuid] = 0
-        while(True):
-            #if the user has joined another group, remove it
+        lastParticipants = len(
+            list(set(self.groups[request.groupName].users.values())))
+        while (True):
+            # if the user has joined another group, remove it
             if request.uuid not in self.groups[request.groupName].users.keys():
                 yield groupChat_pb2.ChatMessage(id=-999, user="", content="", numberOfLikes=0)
                 break
             lastId = self.lastId[request.uuid]
             chatRoom = self.groups[request.groupName]
-            #if the client crashed, remove the user
+            # if the client crashed, remove the user
             if not context.is_active():
                 chatRoom.remove_user(request.uuid)
                 break
+            # if number of participants changed
+            if (lastParticipants != len(list(set(self.groups[request.groupName].users.values())))):
+                participants = list(
+                    set(self.groups[request.groupName].users.values()))
+                lastParticipants = len(
+                    list(set(self.groups[request.groupName].users.values())))
+                yield groupChat_pb2.ChatMessage(id=-998, user=", ".join(participants), content="", numberOfLikes=0)
             if len(chatRoom.messages) > lastId:
                 self.lastId[request.uuid] = len(chatRoom.messages)
                 for message in chatRoom.messages[-10:]:
