@@ -7,6 +7,8 @@ import groupChat_pb2_grpc
 from concurrent import futures
 
 # Chat room class to store information about a chat room
+
+
 class ChatRoom:
     def __init__(self, name):
         self.name = name
@@ -20,10 +22,10 @@ class ChatRoom:
     #remove an user, just remove the certain uuid's user, if there are two same username in a group, only remove one of them
     def remove_user(self, id):
         del self.users[id]
-    
+
     def add_message(self, message):
         self.messages.append(message)
-    
+
     def add_like(self, user, message_id):
         id = message_id - 1
         if id in range(len(self.messages)):
@@ -35,7 +37,7 @@ class ChatRoom:
             return True
         else:
             return False
-    
+
     def remove_like(self, user, message_id):
         id = message_id - 1
         if id in range(len(self.messages)):
@@ -56,14 +58,15 @@ class ChatMessage:
         self.message = message
         self.likes = set()
 
+
 class ChatService(groupChat_pb2_grpc.ChatServerServicer):
     def __init__(self):
-        self.users  = {}
+        self.users = {}
         self.groups = {}
         self.lastId = {}
 
     def chatFunction(self, request, context):
-        #type 1: login, 2: join, 3: chat, 4: like, 5: dislike, 6: history
+        # type 1: login, 2: join, 3: chat, 4: like, 5: dislike, 6: history
         try:
             _type = request.type
         except ValueError:
@@ -76,7 +79,8 @@ class ChatService(groupChat_pb2_grpc.ChatServerServicer):
                 self.groups[self.users[request.uuid]].remove_user(request.uuid)
             if request.groupName not in self.groups.keys():
                 self.groups[request.groupName] = ChatRoom(request.groupName)
-            self.groups[request.groupName].add_user(request.userName, request.uuid)
+            self.groups[request.groupName].add_user(
+                request.userName, request.uuid)
             self.users[request.uuid] = request.groupName
             return groupChat_pb2.ChatOutput(status="success", messages=[], user=list(set(self.groups[request.groupName].users.values())))
         elif _type == 3:
@@ -107,7 +111,8 @@ class ChatService(groupChat_pb2_grpc.ChatServerServicer):
             message = chatRoom.messages
             msg_list = []
             for message in chatRoom.messages:
-                msg_list.append(groupChat_pb2.ChatMessage(id=message.id, user=message.user, content=message.message, numberOfLikes=len(message.likes)))
+                msg_list.append(groupChat_pb2.ChatMessage(
+                    id=message.id, user=message.user, content=message.message, numberOfLikes=len(message.likes)))
             return groupChat_pb2.ChatOutput(status="success", messages=msg_list)
         elif _type == 7:
             self.groups[request.groupName].remove_user(request.uuid)
@@ -133,6 +138,7 @@ class ChatService(groupChat_pb2_grpc.ChatServerServicer):
                 for message in chatRoom.messages[-10:]:
                     yield groupChat_pb2.ChatMessage(id=message.id, user=message.user, content=message.message, numberOfLikes=len(message.likes))
 
+
 def start_server(port: int):
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=100))
     groupChat_pb2_grpc.add_ChatServerServicer_to_server(ChatService(), server)
@@ -140,9 +146,11 @@ def start_server(port: int):
     server.start()
     server.wait_for_termination()
 
+
 if __name__ == "__main__":
     server_thread = threading.Thread(target=start_server, args=(8001,))
     server_thread.start()
+    print("Server started on port 8001! ")
 
     # Start the event loop
     loop = asyncio.get_event_loop()

@@ -7,11 +7,6 @@ import time
 import uuid
 
 
-address = 'localhost'
-port = 8001
-timeSleep = 1
-
-
 COMMANDS = {
     "u": 1,  # login
     "j": 2,  # join
@@ -33,24 +28,26 @@ class Client:
 
     # Getting user input and sending messages to server
     def send(self):
-        print("Client started \nType 'u <username>' to login, 'j <groupname>' to join a group, 'a <message>' to chat, 'l <message_id>' to like a message, 'r <message_id>' to dislike a message, 'p' to get history, 'q' to quit")
+        print("Type 'u <username>' to login, 'j <groupname>' to join a group, 'a <message>' to chat, 'l <message_id>' to like a message, 'r <message_id>' to dislike a message, 'p' to get history, 'q' to quit")
         self.input()
 
     # Getting terminal line input and split to id and message, return the ChatInput
     def input(self):
+        # Loop for keeping reading user input
         while True:
             try:
                 inputs = input().split(maxsplit=1)
                 if (len(inputs) == 1):
                     _com = inputs[0]
                     _message = ""
-
+                    # Exit the program if detect quit command
                     if (_com == "q"):
                         if (self.loginName == None and self.groupName == None):
                             break
                         response = self.stub.chatFunction(groupChat_pb2.ChatInput(
                             type=7, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0, uuid=self.uuid))
                         break
+                    # Print history messagges if detect p command
                     elif (_com == 'p'):
                         if (self.loginName == None or self.groupName == None):
                             print("Please login and join a group first")
@@ -63,9 +60,11 @@ class Client:
                 else:
                     _com, _message = inputs
                     _type = COMMANDS.get(_com, None)
+                    # print invalid if command not found
                     if not _type:
                         print("Invalid command")
                         continue
+                    # Send user name to the server
                     if _type == 1:
                         response = self.stub.chatFunction(groupChat_pb2.ChatInput(
                             type=_type, message=_message, userName=_message, groupName="", messageId=0, uuid=self.uuid))
@@ -74,6 +73,7 @@ class Client:
                             print("Login as: " + self.loginName)
                         else:
                             print("Login failed, please try again")
+                    # Send join group message to the server if logged in
                     elif _type == 2 and self.loginName is not None:
                         response = self.stub.chatFunction(groupChat_pb2.ChatInput(
                             type=_type, message=_message, userName=self.loginName, groupName=_message, messageId=0, uuid=self.uuid))
@@ -81,16 +81,19 @@ class Client:
                             self.groupName = _message
                             print("Group: " + self.groupName)
                             print("Participants: " + ', '.join(response.user))
-                            # Thread for listening to server messages
+                            # Success logged in and joined in will start the thread for listening new messages in groupChat from server
                             self.listen_thread = threading.Thread(
                                 target=self.listen, daemon=True)
                             self.listen_thread.start()
                         else:
                             print("Join chat group failed, please try again")
+                    # If logged in and joined a group
                     elif self.loginName is not None and self.groupName is not None:
+                        # Append new messages
                         if _type == 3:
                             response = self.stub.chatFunction(groupChat_pb2.ChatInput(
                                 type=_type, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0, uuid=self.uuid))
+                        # Add like to the message
                         elif _type == 4:
                             try:
                                 _msgId = int(_message)
@@ -100,6 +103,7 @@ class Client:
                                 type=_type, message="", userName=self.loginName, groupName=self.groupName, messageId=_msgId, uuid=self.uuid))
                             if (response.status == "success" and len(response.messages) > 0):
                                 self.output(response)
+                        # Remove like from the message
                         elif _type == 5:
                             try:
                                 _msgId = int(_message)
@@ -123,14 +127,17 @@ class Client:
                 continue
 
         print("Exiting...")
-        self.listen_thread.stop()
+        # Kill the listen thread
         self.listen_thread.join()
+        # Close the channel connection
         self.channel.close()
-        exit()
 
     # listening to server messages
     def listen(self):
-        for r in self.stub.getMessages(groupChat_pb2.ChatInput(userName=self.loginName, groupName=self.groupName, type=0, message="", messageId=0, uuid=self.uuid)):
+        for r in self.stub.getMessages(groupChat_pb2.ChatInput(
+                userName=self.loginName, groupName=self.groupName, type=0, message="", messageId=0, uuid=self.uuid)):
+            if r.id == -999:
+                break
             print("{0}. {1}: {2} {3: >10}".format(
                 r.id, r.user, r.content, r.numberOfLikes > 0 and "likes: "+str(r.numberOfLikes) or ""))
 
@@ -144,9 +151,30 @@ class Client:
 
 
 def run():
-    client = Client(address, port)
+
+    print("Client Start \nPlease type 'c <hostname> <portnumber> to connect to Server")
+    address = None
+    port = None
+    # waiting user input for address and port number
+    while True:
+        try:
+            inputs = input().split()
+            if (len(inputs) != 3):
+                raise ValueError
+            _com, _address, _port = inputs
+            if (_com == 'c'):
+                address = _address
+                port = int(_port)
+                break
+            else:
+                raise ValueError
+        except ValueError:
+            print(
+                "Invalid input format. Please type 'c <hostname> <portnumber> to connect to Server")
+            continue
 
     # Thread for sending messages to server
+    client = Client(address, port)
     input_thread = threading.Thread(target=client.send)
     input_thread.start()
     input_thread.join()
