@@ -130,14 +130,16 @@ class Client:
     def listen(self):
         print("Group: ", self.groupName)
         for r in self.stub.getMessages(groupChat_pb2.ChatInput(userName=self.loginName, groupName=self.groupName, type=0, message="", messageId=0)):
-            print("{0}. {1} sent this message: {2} {3: >10}".format(
-                r.id, r.user, r.content, r.numberOfLikes))
+            print("{0}. {1}: {2} {3: >10}".format(
+                r.id, r.user, r.content, r.numberOfLikes > 0 and "likes: "+str(r.numberOfLikes) or ""))
 
     # output messages from server
     def output(self, response):
-        for message in response.messages:
-            print("Message from server: {0}. {1} {2} likes: {3: >10}".format(
-                message.id, message.user, message.content, message.numberOfLikes))
+        print("------------------------------------")
+        for r in response.messages:
+            print("{0}. {1}: {2} {3: >10}".format(
+                r.id, r.user, r.content, r.numberOfLikes > 0 and "likes: "+str(r.numberOfLikes) or ""))
+        print("------------------------------------")
 
 
 def run():
