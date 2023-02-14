@@ -15,6 +15,7 @@ message ChatInput {
     int32 type = 3;
     string message = 4;
     int32 messageId = 5;
+    string uuid = 6;
 }
 
 message ChatOutput {

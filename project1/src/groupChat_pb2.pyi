@@ -6,18 +6,20 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ChatInput(_message.Message):
-    __slots__ = ["groupName", "message", "messageId", "type", "userName"]
+    __slots__ = ["groupName", "message", "messageId", "type", "userName", "uuid"]
     GROUPNAME_FIELD_NUMBER: _ClassVar[int]
     MESSAGEID_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     USERNAME_FIELD_NUMBER: _ClassVar[int]
+    UUID_FIELD_NUMBER: _ClassVar[int]
     groupName: str
     message: str
     messageId: int
     type: int
     userName: str
-    def __init__(self, userName: _Optional[str] = ..., groupName: _Optional[str] = ..., type: _Optional[int] = ..., message: _Optional[str] = ..., messageId: _Optional[int] = ...) -> None: ...
+    uuid: str
+    def __init__(self, userName: _Optional[str] = ..., groupName: _Optional[str] = ..., type: _Optional[int] = ..., message: _Optional[str] = ..., messageId: _Optional[int] = ..., uuid: _Optional[str] = ...) -> None: ...
 
 class ChatMessage(_message.Message):
     __slots__ = ["content", "id", "numberOfLikes", "user"]

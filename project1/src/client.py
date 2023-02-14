@@ -4,7 +4,7 @@ import groupChat_pb2_grpc
 import logging
 import threading
 import time
-import json
+import uuid
 
 
 address = 'localhost'
@@ -29,6 +29,7 @@ class Client:
         self.loginName = None
         self.groupName = None
         self.listen_thread = None
+        self.uuid = str(uuid.uuid4())
 
     # Getting user input and sending messages to server
     def send(self):
@@ -48,14 +49,14 @@ class Client:
                         if (self.loginName == None and self.groupName == None):
                             break
                         response = self.stub.chatFunction(groupChat_pb2.ChatInput(
-                            type=7, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0))
+                            type=7, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0, uuid=self.uuid))
                         break
                     elif (_com == 'p'):
                         if (self.loginName == None or self.groupName == None):
                             print("Please login and join a group first")
                             continue
                         response = self.stub.chatFunction(groupChat_pb2.ChatInput(
-                            userName=self.loginName, groupName=self.groupName, type=6, message="", messageId=0))
+                            userName=self.loginName, groupName=self.groupName, type=6, message="", messageId=0, uuid=self.uuid))
                         self.output(response)
                     else:
                         raise ValueError
@@ -67,7 +68,7 @@ class Client:
                         continue
                     if _type == 1:
                         response = self.stub.chatFunction(groupChat_pb2.ChatInput(
-                            type=_type, message=_message, userName=_message, groupName="", messageId=0))
+                            type=_type, message=_message, userName=_message, groupName="", messageId=0, uuid=self.uuid))
                         if (response.status == "success"):
                             self.loginName = _message
                             print("Login as: " + self.loginName)
@@ -75,7 +76,7 @@ class Client:
                             print("Login failed, please try again")
                     elif _type == 2 and self.loginName is not None:
                         response = self.stub.chatFunction(groupChat_pb2.ChatInput(
-                            type=_type, message=_message, userName=self.loginName, groupName=_message, messageId=0))
+                            type=_type, message=_message, userName=self.loginName, groupName=_message, messageId=0, uuid=self.uuid))
                         if (response.status == "success"):
                             self.groupName = _message
                             print("Group: " + self.groupName)
@@ -89,14 +90,14 @@ class Client:
                     elif self.loginName is not None and self.groupName is not None:
                         if _type == 3:
                             response = self.stub.chatFunction(groupChat_pb2.ChatInput(
-                                type=_type, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0))
+                                type=_type, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0, uuid=self.uuid))
                         elif _type == 4:
                             try:
                                 _msgId = int(_message)
                             except ValueError:
                                 print("Error type")
                             response = self.stub.chatFunction(groupChat_pb2.ChatInput(
-                                type=_type, message="", userName=self.loginName, groupName=self.groupName, messageId=_msgId))
+                                type=_type, message="", userName=self.loginName, groupName=self.groupName, messageId=_msgId, uuid=self.uuid))
                             if (response.status == "success" and len(response.messages) > 0):
                                 self.output(response)
                         elif _type == 5:
@@ -105,7 +106,7 @@ class Client:
                             except ValueError:
                                 print("Error type")
                             response = self.stub.chatFunction(groupChat_pb2.ChatInput(
-                                type=_type, message="", userName=self.loginName, groupName=self.groupName, messageId=_msgId))
+                                type=_type, message="", userName=self.loginName, groupName=self.groupName, messageId=_msgId, uuid=self.uuid))
                             if (response.status == "success" and len(response.messages) > 0):
                                 self.output(response)
                         else:
@@ -129,7 +130,7 @@ class Client:
 
     # listening to server messages
     def listen(self):
-        for r in self.stub.getMessages(groupChat_pb2.ChatInput(userName=self.loginName, groupName=self.groupName, type=0, message="", messageId=0)):
+        for r in self.stub.getMessages(groupChat_pb2.ChatInput(userName=self.loginName, groupName=self.groupName, type=0, message="", messageId=0, uuid=self.uuid)):
             print("{0}. {1}: {2} {3: >10}".format(
                 r.id, r.user, r.content, r.numberOfLikes > 0 and "likes: "+str(r.numberOfLikes) or ""))
 

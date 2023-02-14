@@ -51,6 +51,7 @@ class ChatService(groupChat_pb2_grpc.ChatServerServicer):
     def __init__(self):
         self.users = set()
         self.groups = {}
+        self.lastId = {}
 
     def chatFunction(self, request, context):
         #type 1: login, 2: join, 3: chat, 4: like, 5: dislike, 6: history
@@ -58,7 +59,6 @@ class ChatService(groupChat_pb2_grpc.ChatServerServicer):
             _type = request.type
         except ValueError:
             print("Error type")
-        print(_type)
         if _type == 1:
             self.users.add(request.userName)
             return groupChat_pb2.ChatOutput(status="success", messages=[])
@@ -81,8 +81,9 @@ class ChatService(groupChat_pb2_grpc.ChatServerServicer):
                 return groupChat_pb2.ChatOutput(status="success", messages=[])
             if request.messageId > len(chatRoom.messages) - 10:
                 msg_list = []
-                for message in chatRoom.messages[-10:]:
-                    msg_list.append(groupChat_pb2.ChatMessage(id=message.id, user=message.user, content=message.message, numberOfLikes=len(message.likes)))
+                for element in self.lastId:
+                    if self.lastId[element] > 0:
+                        self.lastId[element] = self.lastId[element] - 1
                 return groupChat_pb2.ChatOutput(status="success", messages=msg_list)
             else:
                 return groupChat_pb2.ChatOutput(status="success", messages=[])
@@ -92,8 +93,9 @@ class ChatService(groupChat_pb2_grpc.ChatServerServicer):
                 return groupChat_pb2.ChatOutput(status="success", messages=[])
             if request.messageId > len(chatRoom.messages) - 10:
                 msg_list = []
-                for message in chatRoom.messages[-10:]:
-                    msg_list.append(groupChat_pb2.ChatMessage(id=message.id, user=message.user, content=message.message, numberOfLikes=len(message.likes)))
+                for element in self.lastId:
+                    if self.lastId[element] > 0:
+                        self.lastId[element] = self.lastId[element] - 1
                 return groupChat_pb2.ChatOutput(status="success", messages=msg_list)
             else:
                 return groupChat_pb2.ChatOutput(status="success", messages=[])
@@ -112,11 +114,12 @@ class ChatService(groupChat_pb2_grpc.ChatServerServicer):
             return groupChat_pb2.ChatOutput(status="failed", messages=[])
 
     def getMessages(self, request, context):
-        lastId = 0
+        self.lastId[request.uuid] = 0
         while(True):
+            lastId = self.lastId[request.uuid]
             chatRoom = self.groups[request.groupName]
             if len(chatRoom.messages) > lastId:
-                lastId = len(chatRoom.messages)
+                self.lastId[request.uuid] = len(chatRoom.messages)
                 for message in chatRoom.messages[-10:]:
                     yield groupChat_pb2.ChatMessage(id=message.id, user=message.user, content=message.message, numberOfLikes=len(message.likes))
 
