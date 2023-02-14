@@ -17,8 +17,9 @@ class ChatRoom:
         self.messages.append(message)
     
     def add_like(self, user, message_id):
-        if message_id in range(len(self.messages)):
-            message = self.messages[message_id]
+        id = message_id - 1
+        if id in range(len(self.messages)):
+            message = self.messages[id]
         else:
             return False
         if user != message.user and user not in message.likes:
@@ -28,8 +29,9 @@ class ChatRoom:
             return False
     
     def remove_like(self, user, message_id):
-        if message_id in range(len(self.messages)):
-            message = self.messages[message_id]
+        id = message_id - 1
+        if id in range(len(self.messages)):
+            message = self.messages[id]
         else:
             return False
         if user in message.likes:
@@ -64,10 +66,10 @@ class ChatService(groupChat_pb2_grpc.ChatServerServicer):
             if request.groupName not in self.groups.keys():
                 self.groups[request.groupName] = ChatRoom(request.groupName)
             self.groups[request.groupName].users.add(request.userName)
-            return groupChat_pb2.ChatOutput(status="success", messages=[])
+            return groupChat_pb2.ChatOutput(status="success", messages=[], user=list(self.groups[request.groupName].users))
         elif _type == 3:
             chatRoom = self.groups[request.groupName]
-            chatRoom.add_message(ChatMessage(len(chatRoom.messages), request.userName, request.message))
+            chatRoom.add_message(ChatMessage(len(chatRoom.messages) + 1, request.userName, request.message))
             msg_list = []
             for message in chatRoom.messages[-10:]:
                 msg_list.append(groupChat_pb2.ChatMessage(id=message.id, user=message.user, content=message.message, numberOfLikes=len(message.likes)))

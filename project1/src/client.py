@@ -78,7 +78,8 @@ class Client:
                             type=_type, message=_message, userName=self.loginName, groupName=_message, messageId=0))
                         if (response.status == "success"):
                             self.groupName = _message
-                            print("Entering group: " + self.groupName)
+                            print("Group: " + self.groupName)
+                            print("Participants: " + ', '.join(response.user))
                             # Thread for listening to server messages
                             self.listen_thread = threading.Thread(
                                 target=self.listen, daemon=True)
@@ -128,7 +129,6 @@ class Client:
 
     # listening to server messages
     def listen(self):
-        print("Group: ", self.groupName)
         for r in self.stub.getMessages(groupChat_pb2.ChatInput(userName=self.loginName, groupName=self.groupName, type=0, message="", messageId=0)):
             print("{0}. {1}: {2} {3: >10}".format(
                 r.id, r.user, r.content, r.numberOfLikes > 0 and "likes: "+str(r.numberOfLikes) or ""))
