@@ -139,11 +139,9 @@ class ChatService(groupChat_pb2_grpc.ChatServerServicer):
                 chatRoom.remove_user(request.uuid)
                 break
             # if number of participants changed
-            if (lastParticipants != len(list(set(self.groups[request.groupName].users.values())))):
-                participants = list(
-                    set(self.groups[request.groupName].users.values()))
-                lastParticipants = len(
-                    list(set(self.groups[request.groupName].users.values())))
+            participants = list(set(self.groups[request.groupName].users.values()))
+            if (lastParticipants != len(participants)):
+                lastParticipants = len(participants)
                 yield groupChat_pb2.ChatMessage(id=-998, user=", ".join(participants), content=request.groupName, numberOfLikes=0)
             if len(chatRoom.messages) > lastId:
                 self.lastId[request.uuid] = len(chatRoom.messages)
