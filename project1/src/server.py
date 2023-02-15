@@ -144,7 +144,7 @@ class ChatService(groupChat_pb2_grpc.ChatServerServicer):
                     set(self.groups[request.groupName].users.values()))
                 lastParticipants = len(
                     list(set(self.groups[request.groupName].users.values())))
-                yield groupChat_pb2.ChatMessage(id=-998, user=", ".join(participants), content="", numberOfLikes=0)
+                yield groupChat_pb2.ChatMessage(id=-998, user=", ".join(participants), content=request.groupName, numberOfLikes=0)
             if len(chatRoom.messages) > lastId:
                 self.lastId[request.uuid] = len(chatRoom.messages)
                 for message in chatRoom.messages[-10:]:

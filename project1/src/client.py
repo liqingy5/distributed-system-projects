@@ -75,18 +75,16 @@ class Client:
                             print("Login failed, please try again")
                     # Send join group message to the server if logged in
                     elif _type == 2 and self.loginName is not None:
+                        self.groupName = _message
                         response = self.stub.chatFunction(groupChat_pb2.ChatInput(
                             type=_type, message=_message, userName=self.loginName, groupName=_message, messageId=0, uuid=self.uuid))
-                        if (response.status == "success"):
-                            self.groupName = _message
-                            print("Group: " + self.groupName)
-                            print("Participants: " + ', '.join(response.user))
-                            # Success logged in and joined in will start the thread for listening new messages in groupChat from server
-                            self.listen_thread = threading.Thread(
-                                target=self.listen, daemon=True)
-                            self.listen_thread.start()
-                        else:
-                            print("Join chat group failed, please try again")
+                        # if (response.status == "success"):
+                        print("Group: " + self.groupName)
+                        print("Participants: " + ', '.join(response.user))
+                        # Success logged in and joined in will start the thread for listening new messages in groupChat from server
+                        self.listen_thread = threading.Thread(
+                            target=self.listen, daemon=True)
+                        self.listen_thread.start()
                     # If logged in and joined a group
                     elif self.loginName is not None and self.groupName is not None:
                         # Append new messages
@@ -141,10 +139,11 @@ class Client:
                 break
             # -998 means there is a changed in participant members, print current participants
             if r.id == -998:
-                print("Participants: "+r.user)
-                continue
-            print("{0}. {1}: {2} {3: >10}".format(
-                r.id, r.user, r.content, r.numberOfLikes > 0 and "likes: "+str(r.numberOfLikes) or ""))
+                if (r.content == self.groupName):
+                    print("Participants: "+r.user)
+            else:
+                print("{0}. {1}: {2} {3: >10}".format(
+                    r.id, r.user, r.content, r.numberOfLikes > 0 and "likes: "+str(r.numberOfLikes) or ""))
 
     # output messages from server
     def output(self, response):

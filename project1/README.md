@@ -1,3 +1,5 @@
+# Project 1: Group Chat Command Line Application Using gRPC
+
 ## Docker setup
 
 To make setup easier, we have provided a `Dockerfile` that can be used to set up
@@ -40,39 +42,20 @@ To start the server, run:
 python3 server.py
 ```
 
-To start a client,run:
+The server has been set to listen on port 8001
+
+To start a client, run:
 
 ```
 python3 client.py
 ```
 
-<!-- ### Multiple container setup
-
-To run applications over multiple machines.
-
-To create a bridge network named `cs2510`, you can run (on your host, not inside a
-container):
+After starting, to connect to the server, type
 
 ```
-docker network create --driver bridge cs2510
+c localhost 8001
 ```
 
-Then, to create two containers `server` and `client` that both connect to the
-bridge, you can run (in two separate terminal windows):
+Our application support all commands showing in the project description, we also provide a demo video as reference.
 
-```
-docker run -it --name server --network cs2510 GroupChat
-docker run -it --name client --network cs2510 GroupChat
-```
-
-With this setup, you can use the names of the containers (i.e. `server` and
-`client`) as the hostnames for communication. Alternatively, you can find the
-IP address for each container by running `ip addr` in the container and then
-use the IP addresses.
-
-When you are done, remove both containers:
-
-```
-docker rm server
-docker rm client
-``` -->
+[Demo](https://pitt-my.sharepoint.com/:v:/g/personal/qil77_pitt_edu/EY6yAcTqMn9BuvBo1DLV4hgBq0sNzHcwmLdZtRZpGk34yQ?e=XeTAYj)
