@@ -1,6 +1,6 @@
 # Group chat Server/Client
 
-A simple group chat server/client implemented with [gRPC](https://grpc.io) in Python.
+A basic group chat server/client implemented with [gRPC](https://grpc.io) in Python.
 
 ## Prerequisites
 
@@ -22,18 +22,6 @@ source env/bin/activate
 ```Bash
 pip install -r requirements.txt.
 ```
-
-<!-- ### gRPC
-
-```Bash
-python -m pip install grpcio
-```
-
-### gRPC tools
-
-```Bash
-python -m pip install grpcio-tools
-``` -->
 
 ## Generate gRPC code
 
