@@ -24,6 +24,7 @@ class Client:
         self.loginName = None
         self.groupName = None
         self.listen_thread = None
+        self.exit = False
         self.uuid = str(uuid.uuid4())
 
     # Getting user input and sending messages to server
@@ -42,6 +43,7 @@ class Client:
                     _message = ""
                     # Exit the program if detect quit command
                     if (_com == "q"):
+                        self.exit = True
                         if (self.loginName == None and self.groupName == None):
                             break
                         response = self.stub.chatFunction(groupChat_pb2.ChatInput(
@@ -138,12 +140,13 @@ class Client:
             if r.id == -999:
                 break
             # -998 means there is a changed in participant members, print current participants
-            if r.id == -998:
-                if (r.content == self.groupName):
-                    print("Participants: "+r.user)
-            else:
-                print("{0}. {1}: {2} {3: >10}".format(
-                    r.id, r.user, r.content, r.numberOfLikes > 0 and "likes: "+str(r.numberOfLikes) or ""))
+            if(self.exit == False):
+                if r.id == -998:
+                    if (r.content == self.groupName):
+                        print("Participants: "+r.user)
+                else:
+                    print("{0}. {1}: {2} {3: >10}".format(
+                        r.id, r.user, r.content, r.numberOfLikes > 0 and "likes: "+str(r.numberOfLikes) or ""))
 
     # output messages from server
     def output(self, response):
