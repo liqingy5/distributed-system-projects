@@ -1,6 +1,6 @@
 # Group chat Server/Client
 
-A basic group chat server/client implemented with [gRPC](https://grpc.io) in Python.
+A group chat application applied Raft consensus algorithm 
 
 ## Prerequisites
 

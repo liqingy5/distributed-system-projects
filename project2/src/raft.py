@@ -1,19 +1,54 @@
 ## Just pseudocode for now, can change later
-class RaftNode:
-    def __init__(self, id, peers):
-        self.id = id
-        self.peers = peers
-        self.state = 'follower'
+import asyncio
+import grpc
+import time
+import json
+import threading
+import os.path
+import raftMessage_pb2
+import raftMessage_pb2_grpc
+from concurrent import futures
+
+election_timeout = 150 #ms
+heartbeat_timeout = 100 #ms
+class RaftNode(raftMessage_pb2_grpc.raftMessageServicer):
+    def __init__(self, _id, meta):
+        self.id = _id
+        self.peers = {key:meta[key] for key in meta.keys() if _id!=key} ## dict of peers (e.g., {1:'localhost:50051', 2:'localhost:50052'})
+        self.addr = meta['id'] ## address of this server (e.g., 'localhost:50051')
+        self.channel = grpc.insecure_channel(self.addr) 
+        self.stub = raftMessage_pb2_grpc.raftMessageStub(self.channel)
+        self.state = 'candidate'
         # Persistent state on all servers:
+        
         self.currentTerm = 0 ## latest term server has seen (initialized to 0 on first boot, increases monotonically)
         self.votedFor = None ## candidateId that received vote in current term (or null if none)
-        self.log = [] ## log entries; each entry contains command for state machine, and term when entry was received by leader (first index is 1)
+        self.loadPersistentState() ## load persistent state from file if exist
+        
+        self.logs = [] ## log entries; each entry contains command for state machine, and term when entry was received by leader (first index is 1)
+        self.loadLog() ## load log from file if exist
+
         # Volatile state on all servers:
+        
         self.commitIndex = 0 ## index of highest log entry known to be committed (initialized to 0, increases monotonically)
         self.lastApplied = 0 ## index of highest log entry applied to state machine (initialized to 0, increases monotonically)
+        
         # Volatile state on leaders:
+        
         self.nextIndex = {} ## for each server, index of the next log entry to send to that server (initialized to leader last log index + 1)
         self.matchIndex = {} ## for each server, index of highest log entry known to be replicated on server (initialized to 0, increases monotonically)
+
+        #Append Entries
+        self.leaderId = None
+
+        #Request Votes
+        self.voteIds={id:0 for id in self.peers.keys() if id!=self.id}
+
+        ## election timeout
+        self.leader_selection_time = time.time() + election_timeout
+
+        ## heartbeat timeout
+        self.next_heartbeat_time = time.time() + heartbeat_timeout
     def __str__(self):
         return 'Raft(id={}, state={}, currentTerm={}, votedFor={}, log={}, commitIndex={}, lastApplied={}, nextIndex={}, matchIndex={})'.format(
             self.id, self.state, self.currentTerm, self.votedFor, self.log, self.commitIndex, self.lastApplied, self.nextIndex, self.matchIndex)
@@ -21,92 +56,120 @@ class RaftNode:
     def __repr__(self):
         return self.__str__()
     
-    def send(self, peer, message):
-        print('Sending {} to {}'.format(message, peer))
+    ## Log entries operations
+    def saveLog(self):
+        filename = './logs/log_{}.json'.format(self.id)
+        with open(filename, 'w') as f:
+            json.dump(self.log, f)
+    def loadLog(self):
+        filename = './logs/log_{}.json'.format(self.id)
+        if not os.path.isfile(filename):
+            self.saveLog()
+        with open(filename, 'r') as f:
+            self.log = json.load(f)
+    def deleteEntry(self, index):
+        if index<0 or index>=len(self.log):
+            return
+        self.log = self.log[:index]
+        self.saveLog()
+    def getLogTerm(self, index):
+        if(index<0 or index>=len(self.log)):
+            return -1
+        return self.log[index].term
+    def appendLogEntries(self, entry):
+        self.log+=entry
+        self.saveLog()
+        return
     
-    def broadcast(self, message):
-        for peer in self.peers:
-            self.send(peer, message)
+    ## Persistent state operations
+    def savePersistentState(self):
+        persistent = {'currentTerm':self.currentTerm, 'votedFor':self.votedFor}
+        filename = './states/persistent_state_{}.json'.format(self.id)
+        with open(filename, 'w') as f:
+            json.dump(persistent, f)
+    def loadPersistentState(self):
+        filename = './states/persistent_state_{}.json'.format(self.id)
+        if not os.path.isfile(filename):
+            self.savePersistentState()
+        with open(filename, 'r') as f:
+            persistent = json.load(f)
+        self.currentTerm = persistent['currentTerm']
+        self.votedFor = persistent['votedFor']
     
-    def become_follower(self, term):
-        print('Becoming follower')
-        self.state = 'follower'
-        self.currentTerm = term
-        self.votedFor = None
+    ## Append Entries RPC,only use in follower state
+    def appendEntries(self, request, context):
+        response = raftMessage_pb2.AppendEntriesReply(term=self.currentTerm, success=True,id=self.id)
+        # Append Entries Rule 1
+        if request.term < self.currentTerm:
+            response.success = False
+            yield response
+            return True
+        
+        if not request.entries:
+            print("heartbeat")
 
-    def become_candidate(self):
-        print('Becoming candidate')
-        self.state = 'candidate'
-        self.currentTerm += 1
-        self.votedFor = self.id
-        self.broadcast('RequestVote(term={}, candidateId={})'.format(self.currentTerm, self.id))
-    
-    def become_leader(self):
-        print('Becoming leader')
-        self.state = 'leader'
-        self.broadcast('AppendEntries(term={}, leaderId={})'.format(self.currentTerm, self.id))
-    
-    def on_request_vote(self, term, candidate_id):
-        if term < self.currentTerm:
-            self.send(candidate_id, 'RequestVoteResponse(term={}, voteGranted=false)'.format(self.currentTerm))
         else:
-            if self.votedFor is None or self.votedFor == candidate_id:
-                self.votedFor = candidate_id
-                self.send(candidate_id, 'RequestVoteResponse(term={}, voteGranted=true)'.format(self.currentTerm))
+            # Append Entries Rule 2 and 3
+            if request.prevLogTerm != self.getLogTerm(request.prevLogIndex):
+                print("Append Entries Rule 2 or 3: prevLogIndex not match")
+                response.success = False
+                print("delete log entry")
+                self.deleteEntry(request.prevLogIndex)
             else:
-                self.send(candidate_id, 'RequestVoteResponse(term={}, voteGranted=false)'.format(self.currentTerm))
+                # Append Entries Rule 4
+                self.appendEntries(request.entries)
+        if request.leaderCommit > self.commitIndex:
+            self.commitIndex = min(request.leaderCommit, len(self.log)-1)
+        self.leaderId = request.leaderId
+        return response
     
-    def on_request_vote_response(self, term, vote_granted):
-        if term > self.currentTerm:
-            self.become_follower(term)
-
-    def on_append_entries(self, term, leader_id):
-        if term < self.currentTerm:
-            self.send(leader_id, 'AppendEntriesResponse(term={}, success=false)'.format(self.currentTerm))
+    ## Request Vote RPC,only use in follower state
+    def requestVote(self, request, context):
+        response = raftMessage_pb2.RequestVoteReply(term=self.currentTerm, voteGranted=True,id=self.id)
+        # Request Vote Rule 1
+        if request.term < self.currentTerm:
+            response.voteGranted = False
+            return response
+        # Request Vote Rule 2
+        if self.votedFor is None or self.votedFor == request.candidateId:
+            if request.lastLogIndex >= len(self.log)-1 and request.lastLogTerm >= self.getLogTerm(len(self.log)-1):
+                self.votedFor = request.candidateId
+                return response
+            else:
+                self.votedFor = None
+                response.voteGranted = False
+                return response
         else:
-            self.become_follower(term)
-            self.send(leader_id, 'AppendEntriesResponse(term={}, success=true)'.format(self.currentTerm))
+            response.voteGranted = False
+            print("vote for other candidate: ",self.votedFor)
+            return response
     
-    def on_append_entries_response(self, term, success):
-        if term > self.currentTerm:
-            self.become_follower(term)
+    # ## Rules for All Servers
+    # def allServers(self,message):
+    #     ## All servers Rule 1
+    #     if self.commitIndex > self.lastApplied:
+    #         self.lastApplied += 1
+    #         return self.log[self.lastApplied].command
+    #     ## All servers Rule 2
+    #     if message.term > self.currentTerm:
+    #         self.currentTerm = message.term
+    #         self.votedFor = None
+    #         self.leader_selection_time = time.time() + election_timeout
+    #         self.state = 'follower'
+    #         self.savePersistentState()
 
-    def on_timeout(self):
-        if self.state == 'follower':
-            self.become_candidate()
-        elif self.state == 'candidate':
-            self.become_candidate()
-        elif self.state == 'leader':
-            self.broadcast('AppendEntries(term={}, leaderId={})'.format(self.currentTerm, self.id))
+    # ## Rules for Followers
+    # def followers(self,message,messageType):
 
-    def on_message(self, message):
-        if message.startswith('RequestVote'):
-            term, candidate_id = message[12:-1].split(', ')
-            term = int(term[5:])
-            candidate_id = int(candidate_id[12:])
-            self.on_request_vote(term, candidate_id)
-        elif message.startswith('RequestVoteResponse'):
-            term, vote_granted = message[20:-1].split(', ')
-            term = int(term[5:])
-            vote_granted = vote_granted[12:] == 'true'
-            self.on_request_vote_response(term, vote_granted)
-        elif message.startswith('AppendEntries'):
-            term, leader_id = message[13:-1].split(', ')
-            term = int(term[5:])
-            leader_id = int(leader_id[10:])
-            self.on_append_entries(term, leader_id)
-        elif message.startswith('AppendEntriesResponse'):
-            term, success = message[21:-1].split(', ')
-            term = int(term[5:])
-            success = success[8:] == 'true'
-            self.on_append_entries_response(term, success)
-        else:
-            print('Unknown message: {}'.format(message))
-    
-    def tick(self):
-        if self.state == 'follower':
-            self.on_timeout()
-        elif self.state == 'candidate':
-            self.on_timeout()
-        elif self.state == 'leader':
-            self.on_timeout()
+    #     reset = False
+    #     ## Followers Rule 1
+    #     if messageType == 'AppendEntries':
+    #         reset = message.success
+    #     elif messageType == 'RequestVote':
+    #         reset = message.success
+
+
+        
+                
+            
+

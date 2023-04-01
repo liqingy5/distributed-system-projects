@@ -16,8 +16,9 @@ message RequestVote{
     int32 lastLogTerm = 4; //term of candidate's last log entry
 }
 message RequestVoteReply{
-    int32 term = 1; //current term, for candidate to update itself
-    bool voteGranted = 2; //true means candidate received vote
+    int32 id = 1; //id of the follower
+    int32 term = 2; //current term, for candidate to update itself
+    bool voteGranted = 3; //true means candidate received vote
 }
 
 message AppendEntries{
@@ -30,8 +31,9 @@ message AppendEntries{
 }
 
 message AppendEntriesReply{
-    int32 term = 1; //current term, for leader to update itself
-    bool success = 2; //true if follower contained entry matching prevLogIndex and prevLogTerm
+    int32 id = 1; //id of the follower
+    int32 term = 2; //current term, for leader to update itself
+    bool success = 3; //true if follower contained entry matching prevLogIndex and prevLogTerm
 }
 
 message LogEntry{
