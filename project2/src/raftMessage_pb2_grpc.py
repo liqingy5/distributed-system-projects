@@ -16,12 +16,12 @@ class raftMessageStub(object):
         """
         self.requestVote = channel.unary_unary(
                 '/raftMessage.raftMessage/requestVote',
-                request_serializer=raftMessage__pb2.RequestVote.SerializeToString,
+                request_serializer=raftMessage__pb2.RequestVoteArgs.SerializeToString,
                 response_deserializer=raftMessage__pb2.RequestVoteReply.FromString,
                 )
         self.appendEntries = channel.unary_unary(
                 '/raftMessage.raftMessage/appendEntries',
-                request_serializer=raftMessage__pb2.AppendEntries.SerializeToString,
+                request_serializer=raftMessage__pb2.AppendEntriesArgs.SerializeToString,
                 response_deserializer=raftMessage__pb2.AppendEntriesReply.FromString,
                 )
 
@@ -46,12 +46,12 @@ def add_raftMessageServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'requestVote': grpc.unary_unary_rpc_method_handler(
                     servicer.requestVote,
-                    request_deserializer=raftMessage__pb2.RequestVote.FromString,
+                    request_deserializer=raftMessage__pb2.RequestVoteArgs.FromString,
                     response_serializer=raftMessage__pb2.RequestVoteReply.SerializeToString,
             ),
             'appendEntries': grpc.unary_unary_rpc_method_handler(
                     servicer.appendEntries,
-                    request_deserializer=raftMessage__pb2.AppendEntries.FromString,
+                    request_deserializer=raftMessage__pb2.AppendEntriesArgs.FromString,
                     response_serializer=raftMessage__pb2.AppendEntriesReply.SerializeToString,
             ),
     }
@@ -76,7 +76,7 @@ class raftMessage(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/raftMessage.raftMessage/requestVote',
-            raftMessage__pb2.RequestVote.SerializeToString,
+            raftMessage__pb2.RequestVoteArgs.SerializeToString,
             raftMessage__pb2.RequestVoteReply.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
@@ -93,7 +93,7 @@ class raftMessage(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/raftMessage.raftMessage/appendEntries',
-            raftMessage__pb2.AppendEntries.SerializeToString,
+            raftMessage__pb2.AppendEntriesArgs.SerializeToString,
             raftMessage__pb2.AppendEntriesReply.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

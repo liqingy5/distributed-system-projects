@@ -2,3 +2,5 @@ __pycache__
 env
 examples
 .DS_Store
+logs
+states

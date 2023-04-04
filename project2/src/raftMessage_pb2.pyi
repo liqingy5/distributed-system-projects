@@ -5,7 +5,7 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
-class AppendEntries(_message.Message):
+class AppendEntriesArgs(_message.Message):
     __slots__ = ["entries", "leaderCommit", "leaderId", "prevLogIndex", "prevLogTerm", "term"]
     ENTRIES_FIELD_NUMBER: _ClassVar[int]
     LEADERCOMMIT_FIELD_NUMBER: _ClassVar[int]
@@ -15,11 +15,11 @@ class AppendEntries(_message.Message):
     TERM_FIELD_NUMBER: _ClassVar[int]
     entries: _containers.RepeatedCompositeFieldContainer[LogEntry]
     leaderCommit: int
-    leaderId: str
+    leaderId: int
     prevLogIndex: int
     prevLogTerm: int
     term: int
-    def __init__(self, term: _Optional[int] = ..., leaderId: _Optional[str] = ..., prevLogIndex: _Optional[int] = ..., prevLogTerm: _Optional[int] = ..., entries: _Optional[_Iterable[_Union[LogEntry, _Mapping]]] = ..., leaderCommit: _Optional[int] = ...) -> None: ...
+    def __init__(self, term: _Optional[int] = ..., leaderId: _Optional[int] = ..., prevLogIndex: _Optional[int] = ..., prevLogTerm: _Optional[int] = ..., entries: _Optional[_Iterable[_Union[LogEntry, _Mapping]]] = ..., leaderCommit: _Optional[int] = ...) -> None: ...
 
 class AppendEntriesReply(_message.Message):
     __slots__ = ["id", "success", "term"]
@@ -39,17 +39,17 @@ class LogEntry(_message.Message):
     term: int
     def __init__(self, term: _Optional[int] = ..., command: _Optional[str] = ...) -> None: ...
 
-class RequestVote(_message.Message):
+class RequestVoteArgs(_message.Message):
     __slots__ = ["candidateId", "lastLogIndex", "lastLogTerm", "term"]
     CANDIDATEID_FIELD_NUMBER: _ClassVar[int]
     LASTLOGINDEX_FIELD_NUMBER: _ClassVar[int]
     LASTLOGTERM_FIELD_NUMBER: _ClassVar[int]
     TERM_FIELD_NUMBER: _ClassVar[int]
-    candidateId: str
+    candidateId: int
     lastLogIndex: int
     lastLogTerm: int
     term: int
-    def __init__(self, term: _Optional[int] = ..., candidateId: _Optional[str] = ..., lastLogIndex: _Optional[int] = ..., lastLogTerm: _Optional[int] = ...) -> None: ...
+    def __init__(self, term: _Optional[int] = ..., candidateId: _Optional[int] = ..., lastLogIndex: _Optional[int] = ..., lastLogTerm: _Optional[int] = ...) -> None: ...
 
 class RequestVoteReply(_message.Message):
     __slots__ = ["id", "term", "voteGranted"]

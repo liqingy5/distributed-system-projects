@@ -13,23 +13,23 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11raftMessage.proto\x12\x0braftMessage\"[\n\x0bRequestVote\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x13\n\x0b\x63\x61ndidateId\x18\x02 \x01(\t\x12\x14\n\x0clastLogIndex\x18\x03 \x01(\x05\x12\x13\n\x0blastLogTerm\x18\x04 \x01(\x05\"A\n\x10RequestVoteReply\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x0c\n\x04term\x18\x02 \x01(\x05\x12\x13\n\x0bvoteGranted\x18\x03 \x01(\x08\"\x98\x01\n\rAppendEntries\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x10\n\x08leaderId\x18\x02 \x01(\t\x12\x14\n\x0cprevLogIndex\x18\x03 \x01(\x05\x12\x13\n\x0bprevLogTerm\x18\x04 \x01(\x05\x12&\n\x07\x65ntries\x18\x05 \x03(\x0b\x32\x15.raftMessage.LogEntry\x12\x14\n\x0cleaderCommit\x18\x06 \x01(\x05\"?\n\x12\x41ppendEntriesReply\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x0c\n\x04term\x18\x02 \x01(\x05\x12\x0f\n\x07success\x18\x03 \x01(\x08\")\n\x08LogEntry\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x0f\n\x07\x63ommand\x18\x02 \x01(\t2\xa7\x01\n\x0braftMessage\x12H\n\x0brequestVote\x12\x18.raftMessage.RequestVote\x1a\x1d.raftMessage.RequestVoteReply\"\x00\x12N\n\rappendEntries\x12\x1a.raftMessage.AppendEntries\x1a\x1f.raftMessage.AppendEntriesReply\"\x00\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11raftMessage.proto\x12\x0braftMessage\"_\n\x0fRequestVoteArgs\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x13\n\x0b\x63\x61ndidateId\x18\x02 \x01(\x05\x12\x14\n\x0clastLogIndex\x18\x03 \x01(\x05\x12\x13\n\x0blastLogTerm\x18\x04 \x01(\x05\"A\n\x10RequestVoteReply\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x0c\n\x04term\x18\x02 \x01(\x05\x12\x13\n\x0bvoteGranted\x18\x03 \x01(\x08\"\x9c\x01\n\x11\x41ppendEntriesArgs\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x10\n\x08leaderId\x18\x02 \x01(\x05\x12\x14\n\x0cprevLogIndex\x18\x03 \x01(\x05\x12\x13\n\x0bprevLogTerm\x18\x04 \x01(\x05\x12&\n\x07\x65ntries\x18\x05 \x03(\x0b\x32\x15.raftMessage.LogEntry\x12\x14\n\x0cleaderCommit\x18\x06 \x01(\x05\"?\n\x12\x41ppendEntriesReply\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x0c\n\x04term\x18\x02 \x01(\x05\x12\x0f\n\x07success\x18\x03 \x01(\x08\")\n\x08LogEntry\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x0f\n\x07\x63ommand\x18\x02 \x01(\t2\xaf\x01\n\x0braftMessage\x12L\n\x0brequestVote\x12\x1c.raftMessage.RequestVoteArgs\x1a\x1d.raftMessage.RequestVoteReply\"\x00\x12R\n\rappendEntries\x12\x1e.raftMessage.AppendEntriesArgs\x1a\x1f.raftMessage.AppendEntriesReply\"\x00\x62\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'raftMessage_pb2', globals())
 if _descriptor._USE_C_DESCRIPTORS == False:
 
   DESCRIPTOR._options = None
-  _REQUESTVOTE._serialized_start=34
-  _REQUESTVOTE._serialized_end=125
-  _REQUESTVOTEREPLY._serialized_start=127
-  _REQUESTVOTEREPLY._serialized_end=192
-  _APPENDENTRIES._serialized_start=195
-  _APPENDENTRIES._serialized_end=347
-  _APPENDENTRIESREPLY._serialized_start=349
-  _APPENDENTRIESREPLY._serialized_end=412
-  _LOGENTRY._serialized_start=414
-  _LOGENTRY._serialized_end=455
-  _RAFTMESSAGE._serialized_start=458
-  _RAFTMESSAGE._serialized_end=625
+  _REQUESTVOTEARGS._serialized_start=34
+  _REQUESTVOTEARGS._serialized_end=129
+  _REQUESTVOTEREPLY._serialized_start=131
+  _REQUESTVOTEREPLY._serialized_end=196
+  _APPENDENTRIESARGS._serialized_start=199
+  _APPENDENTRIESARGS._serialized_end=355
+  _APPENDENTRIESREPLY._serialized_start=357
+  _APPENDENTRIESREPLY._serialized_end=420
+  _LOGENTRY._serialized_start=422
+  _LOGENTRY._serialized_end=463
+  _RAFTMESSAGE._serialized_start=466
+  _RAFTMESSAGE._serialized_end=641
 # @@protoc_insertion_point(module_scope)
