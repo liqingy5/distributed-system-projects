@@ -1,6 +1,7 @@
 import grpc
 import raft_pb2
 import raft_pb2_grpc
+import time
 
 class RaftClient:
     def __init__(self, id,cluster_config):
@@ -12,6 +13,7 @@ class RaftClient:
             for server_id, server_address in self.cluster_config.servers.items():
                 if server_id == self.id:
                     continue
+                time.sleep(3) ## debug purpose, delete when productino
                 print("send request vote to server",server_id)
                 try:
                     with grpc.insecure_channel(server_address) as channel:
@@ -27,6 +29,7 @@ class RaftClient:
             for server_id, server_address in self.cluster_config.servers.items():
                 if server_id == self.id:
                     continue
+                time.sleep(3) ## debug purpose, delete when productino
                 print("send append entries to server",server_id)
                 try:
                     with grpc.insecure_channel(server_address) as channel:

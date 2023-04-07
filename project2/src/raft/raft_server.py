@@ -8,8 +8,8 @@ import raft_pb2
 import raft_pb2_grpc
 from raft_client import RaftClient
 
-election_timeout = 150 #ms
-heartbeat_timeout = 100 #ms
+election_timeout = 20 #s change to 0.15 for production
+heartbeat_timeout = 15 #s change to 0.1 for production
 
 class Role(enum.Enum):
     FOLLOWER = 1
@@ -21,6 +21,8 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
         self.server_id = server_id
         self.role = Role.CANDIDATE
         
+        self.leader_id = -1
+
         self.cluster_config = ClusterConfig(meta)
         self.client = RaftClient(self.server_id,self.cluster_config) ## Used to send RPCs to other servers for Leader
          
@@ -139,7 +141,7 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
                 self.appendEntries(request.entries)
         if request.leaderCommit > self.commitIndex:
             self.commitIndex = min(request.leaderCommit, len(self.log)-1)
-        self.leaderId = request.leaderId
+        self.leader_id = request.leaderId
         response.success = True
         return response
 
@@ -149,7 +151,7 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
             self.election_timer.cancel()
 
         print("election timer reset")
-        self.election_timer = threading.Timer(election_timeout/100, self.start_election)
+        self.election_timer = threading.Timer(election_timeout, self.start_election)
         self.election_timer.start()
     
     def reset_heartbeat_timer(self):
@@ -157,14 +159,14 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
             self.heartbeat_timer.cancel()
 
         print("heartbeat timer reset")
-        self.heartbeat_timer = threading.Timer(heartbeat_timeout/100, self.start_election)
+        self.heartbeat_timer = threading.Timer(heartbeat_timeout, self.start_heartbeat)
         self.heartbeat_timer.start()
 
     def start_election(self):
         self.client.request_vote(self.server_id, self.current_term, len(self.log)-1, self.getLogTerm(len(self.log)-1))
     
     def start_heartbeat(self):
-        self.client.append_entries(self.server_id, self.current_term, len(self.log)-1, self.getLogTerm(len(self.log)-1), [], self.commitIndex)
+        self.client.append_entries(self.server_id, self.current_term,self.leader_id, len(self.log)-1, self.getLogTerm(len(self.log)-1), [], self.commitIndex)
 
     # ## Rules for All Servers
     # def all_servers(self,message):
