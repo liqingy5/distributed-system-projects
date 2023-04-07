@@ -50,7 +50,7 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
         
         # Volatile state on leaders:
         
-        self.nextIndex = {} ## for each server, index of the next log entry to send to that server (initialized to leader last log index + 1)
+        self.nextIndex = {_id:0 for _id in meta.keys() if _id!=server_id} ## for each server, index of the next log entry to send to that server (initialized to leader last log index + 1)
         self.matchIndex = {_id:0 for _id in meta.keys() if _id != server_id} ## for each server, index of highest log entry known to be replicated on server (initialized to 0, increases monotonically)
 
         self.election_timer = None
@@ -114,7 +114,7 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
         self.saveLog()
         self.raft_lock.release()
         return
-
+    # On receive request vote RPC
     def RequestVote(self, request, context):
         print("Server {} current term is {} ,receive Vote request from Server {}, at term {} ".format(self.server_id, self.current_term,request.candidateId,request.term))
         response = raft_pb2.VoteResponse(id=self.server_id,term=self.current_term, voteGranted=False)
@@ -133,7 +133,7 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
             self.raft_lock.release()
         # RequestVote Rule 2
         if self.voted_for == -1 or self.voted_for == request.candidateId:
-            if request.lastLogTerm > self.getLogTerm(len(self.log)-1) or (request.lastLogTerm == self.getLogTerm(len(self.log)-1) and request.lastLogIndex >= len(self.log)-1):
+            if (request.lastLogTerm >= self.getLogTerm(len(self.log)-1)) and (request.lastLogIndex >= len(self.log)-1):
                 self.raft_lock.acquire()
                 self.voted_for = request.candidateId
                 self.savePersistentState()
@@ -143,22 +143,7 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
                 self.raft_lock.release()
         
         return response
-        # if self.voted_for == -1 or self.voted_for == request.candidateId:
-        #     if request.lastLogIndex >= len(self.log)-1 and request.lastLogTerm >= self.getLogTerm(len(self.log)-1):
-        #         self.voted_for = request.candidateId
-        #         self.savePersistentState()
-        #         response.voteGranted = True
-        #         response.reset = True
-        #         return response
-        #     else:
-        #         self.voted_for = None
-        #         self.savePersistentState()
-        #         return response
-        # else:
-        #     print("Already voted for other candidate: ",self.voted_for)
-        #     response.reset = True
-        #     return response
-
+    # On receive append entries RPC
     def AppendEntries(self, request, context):
         print("server {},at term {},with role {}, Receive Append Entries from leader id {}".format(self.server_id,self.current_term,self.role,request.leaderId))
         response = raft_pb2.AppendEntriesResponse(id=self.server_id,term=self.current_term, success=False)
@@ -175,21 +160,22 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
             self.raft_lock.release()
         response.term = self.current_term
         self.reset_election_timer()
-        if not request.entries:
-            self.reset_heartbeat_timer()
-        else:
-            if request.prevLogIndex >= len(self.log) or self.getLogTerm(request.prevLogIndex) != request.prevLogTerm:
-                return response
-            self.deleteEntry(request.prevLogIndex+1)
-            self.appendLogEntries(request.entries)
-            response.success = True
-            if request.leaderCommit > self.commitIndex:
-                self.raft_lock.acquire()
-                oldCommit = self.commitIndex
-                self.commitIndex = min(request.leaderCommit, len(self.log)-1)
-                if self.commitIndex > oldCommit:
-                    self.applyCommit()
-                self.raft_lock.release()
+        # if not request.entries:
+        #     self.reset_heartbeat_timer()
+        
+        # Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm
+        if request.prevLogIndex >= len(self.log) or self.getLogTerm(request.prevLogIndex) != request.prevLogTerm:
+            return response
+        self.deleteEntry(request.prevLogIndex+1)
+        self.appendLogEntries(request.entries)
+        response.success = True
+        if request.leaderCommit > self.commitIndex:
+            self.raft_lock.acquire()
+            oldCommit = self.commitIndex
+            self.commitIndex = min(request.leaderCommit, len(self.log)-1)
+            if self.commitIndex > oldCommit:
+                self.applyCommit()
+            self.raft_lock.release()
         return response
 
     ## Election timer
@@ -255,10 +241,14 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
                 if self.votes > len(self.cluster_config.servers)/2 and self.role == Role.CANDIDATE:
                     self.raft_lock.acquire()
                     self.role = Role.LEADER
+                    ## reInitialize nextIndex and matchIndex after election
+                    for _id in self.matchIndex.keys():
+                        self.matchIndex[_id] = 0
+                        self.nextIndex[_id] = len(self.log)
                     self.reset_election_timer() ## reset election timer
                     self.savePersistentState()
                     self.raft_lock.release()
-                    self.reset_heartbeat_timer() ## start heartbeat timer
+                    # self.reset_heartbeat_timer() ## start heartbeat timer
                     print("server {} become leader".format(self.server_id))
         except grpc.RpcError as e:
             print(f"Error connecting to server {server_id}: {e}")
@@ -268,6 +258,7 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
         print("server {} start heartbeat".format(self.server_id))
         if self.role == Role.LEADER:
             self.send_heartbeat()
+            self.reset_heartbeat_timer()
      
     def send_heartbeat(self):
         threads = []
