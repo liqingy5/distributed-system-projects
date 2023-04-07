@@ -4,25 +4,27 @@ import raft_pb2_grpc
 import time
 
 class RaftClient:
-    def __init__(self, id,cluster_config):
+    def __init__(self,cluster_config):
         self.cluster_config = cluster_config
-        self.id = id
     
-    def request_vote(self, term, candidateId,lastLogIndex,lastLogTerm):
-        while True:
-            for server_id, server_address in self.cluster_config.servers.items():
-                if server_id == self.id:
-                    continue
-                time.sleep(3) ## debug purpose, delete when productino
-                print("send request vote to server",server_id)
-                try:
-                    with grpc.insecure_channel(server_address) as channel:
-                        stub = raft_pb2_grpc.RaftStub(channel)
-                        response = stub.RequestVote(raft_pb2.VoteRequest(term=term,candidateId=candidateId,lastLogIndex=lastLogIndex,lastLogTerm=lastLogTerm))
-                        print(f"Response from server {server_id}: {response}")
+    def request_vote(self, request):
+        votes = 1
+        for server_id, server_address in self.cluster_config.servers.items():
+            ## If candidate Id is same as server id, skip
+            if server_id == request.candidateId:
+                continue
+            print("send request vote to server",server_id)
+            try:
+                with grpc.insecure_channel(server_address) as channel:
+                    stub = raft_pb2_grpc.RaftStub(channel)
+                    response = stub.RequestVote(request)
+                    print(f"Response from server {server_id}: {response}")
+                    if(response.voteGranted):
+                        votes+=1
 
-                except grpc.RpcError as e:
-                    print(f"Error connecting to server {server_id}: {e}")
+            except grpc.RpcError as e:
+                print(f"Error connecting to server {server_id}: {e}")
+        return votes
 
     def append_entries(self, server_id, term, leaderId,prevLogIndex,prevLogTerm,entries,leaderCommit):
         while True:
