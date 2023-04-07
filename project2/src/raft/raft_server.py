@@ -64,7 +64,7 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
 
         
 
-    # Persistent state operations
+    #---------------------persistant state operation---------------------#
     def savePersistentState(self):
         persistent = {'current_term':self.current_term, 'voted_for':self.voted_for}
         dirName = './states'
@@ -83,7 +83,8 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
         self.voted_for = persistent['voted_for']
 
 
-    ## Log entries operations
+    #---------------------log entries operation---------------------#
+    ## Save log local file
     def saveLog(self):
         filename = './logs/log_{}.json'.format(self.server_id)
         dirName = './logs'
@@ -91,25 +92,30 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
             os.mkdir(dirName)
         with open(filename, 'w+') as f:
             json.dump(self.log, f)
+    ## Load log from local file
     def loadLog(self):
         filename = './logs/log_{}.json'.format(self.server_id)
         if not os.path.isfile(filename):
             self.saveLog()
         with open(filename, 'r') as f:
             self.log = json.load(f)
+    ## Delete log entries after index
     def deleteEntry(self, index):
         if index<0 or index>=len(self.log):
             return
         self.log = self.log[:index]
         self.saveLog()
+    ## Get log entry term
     def getLogTerm(self, index):
         if(index<0 or index>=len(self.log)):
             return -1
         return self.log[index].term
+    ## Append log entries
     def appendLogEntries(self, entries):
         self.log+=entries
         self.saveLog()
         return
+    #---------------------on receive RPC request---------------------#
     # On receive request vote RPC
     def RequestVote(self, request, context):
         print("Server {} current term is {} ,receive Vote request from Server {}, at term {} ".format(self.server_id, self.current_term,request.candidateId,request.term))
@@ -177,6 +183,7 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
         self.raft_lock.release()
         return response
 
+    
     ## Election timer
     def reset_election_timer(self):
         if self.election_timer is not None:
@@ -259,7 +266,8 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
             self.send_heartbeat()
             self.reset_election_timer()
         self.reset_heartbeat_timer()
-     
+    
+    ## Leader send heartbeat to all other servers if heatbeat timeout
     def send_heartbeat(self):
         threads = []
         for server_id, server_address in self.cluster_config.servers.items():
@@ -272,6 +280,7 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
         for t in threads:
             t.join()
     
+    ## Send append entries RPC to specific server
     def send_append_entries(self,server_address,server_id,entries):
         request = raft_pb2.AppendEntriesRequest(term=self.current_term,leaderId=self.server_id,prevLogIndex=len(self.log)-1,prevLogTerm=self.getLogTerm(len(self.log)-1),entries=entries,leaderCommit=self.commitIndex)
         try:
