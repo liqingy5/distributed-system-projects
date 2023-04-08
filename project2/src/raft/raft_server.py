@@ -7,7 +7,9 @@ import os.path
 import raft_pb2
 import raft_pb2_grpc
 import grpc
-import concurrent
+from concurrent import futures
+import sys
+import time
 
 election_timeout_low = 1.5 #s change to 0.15 for production
 election_timeout_high = 3 #s change to 0.3 for production
@@ -303,5 +305,26 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
     # apply entries to state machine
     def applyCommit(self):
         pass
+def main():
+    meta={1:"localhost:50051",2:"localhost:50052",3:"localhost:50053"}
+    server_id = (int)(sys.argv[1])
+    server_address = meta[server_id]
+    server = RaftServer(server_id,meta)
+    server.matchIndex = {_id:0 for _id in meta.keys() if _id != server_id}
+    grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    raft_pb2_grpc.add_RaftServicer_to_server(server, grpc_server)
 
+    host, port = server_address.split(":")
+    grpc_server.add_insecure_port(f"{host}:{port}")
+    grpc_server.start()
+    print(f"Server {server_id} started at {server_address}")
+
+
+    try:
+        while True:
+            time.sleep(60 * 60 * 24)  # Run servers indefinitely
+    except KeyboardInterrupt:
+        server.stop()
+if __name__ == "__main__":
+    main()
 
