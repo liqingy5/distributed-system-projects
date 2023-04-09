@@ -1,11 +1,9 @@
 import grpc
-import sys
 import raft_pb2
 import raft_pb2_grpc
-import logging
 import threading
-import time
 import uuid
+
 COMMANDS = {
     "u": 1,  # login
     "j": 2,  # join
@@ -210,6 +208,7 @@ class raftClient():
                 if response.status == "success":
                     return response
             except grpc.RpcError as e:
+                print(f"Can not connect to server {id}")
                 continue
         return False
 
@@ -226,14 +225,9 @@ class raftClient():
 def run():
     print("Client Start!!!")
     client = raftClient()
-    while (True):
-        d = input("Enter 1. Client Append request ; 2. Client request Index\n")
-        if (int(d) == 1):
-            f = input("Enter decree:\n")
-            client.client_append_request(f)
-        else:
-            f = input("Enter Index value to be requested:\n")
-            client.client_req_index(f)
+    input_thread = threading.Thread(target=client.send)
+    input_thread.start()
+    input_thread.join()
 
 
 if __name__ == '__main__':
