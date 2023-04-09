@@ -23,11 +23,6 @@ class Role(enum.Enum):
 def random_election_timeout():
     return random.uniform(election_timeout_low, election_timeout_high)
 
-class Entry:
-    def __init__(self,term,command):
-        self.term = term
-        self.command = command
-
 class RaftServer(raft_pb2_grpc.RaftServicer):
     def __init__(self, server_id,meta):
         self.server_id = server_id
@@ -42,7 +37,7 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
         self.loadPersistentState() ## load persistent state from file if exist
 
 
-        self.log = []
+        self.log = [raft_pb2.LogEntry(term=0,command=1,value="Hello World"),raft_pb2.LogEntry(term=1,command=2,value="Hello World2")]
         self.loadLog() ## load log from file if exist
 
         # Volatile state on all servers:
@@ -92,15 +87,21 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
         dirName = './logs'
         if not os.path.exists(dirName):
             os.mkdir(dirName)
+        entries = []
+        for entry in self.log:
+                entry_to_save = {'term':entry.term, 'command':entry.command, 'value':entry.value}
+                entries.append(entry_to_save)
         with open(filename, 'w+') as f:
-            json.dump(self.log, f)
+            json.dump(entries, f)
     ## Load log from local file
     def loadLog(self):
         filename = './logs/log_{}.json'.format(self.server_id)
         if not os.path.isfile(filename):
             self.saveLog()
         with open(filename, 'r') as f:
-            self.log = json.load(f)
+            entries = json.load(f)
+        for entry in entries:
+            self.log.append(raft_pb2.LogEntry(term=entry['term'],command=entry['command'],value=entry['value']))
     ## Delete log entries after index
     def deleteEntry(self, index):
         if index<0 or index>=len(self.log):
@@ -157,14 +158,16 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
         
         if not request.entries:
             print("server {},at term {},with role {}, Receive Heartbeat from leader id {}".format(self.server_id,self.current_term,self.role,request.leaderId))
+        else:
+            print("server {},at term {},with role {}, Receive Append Entries from leader id {}".format(self.server_id,self.current_term,self.role,request.leaderId,request.entries[0].command,request.entries[0].value))
         
-        if request.term > self.current_term:
-            self.raft_lock.acquire()
-            self.current_term = request.term
-            self.voted_for = -1
-            self.role = Role.FOLLOWER
-            self.savePersistentState()
-            self.raft_lock.release()
+        self.raft_lock.acquire()
+        self.current_term = request.term
+        self.voted_for = -1
+        self.leader_id = request.leaderId
+        self.role = Role.FOLLOWER
+        self.savePersistentState()
+        self.raft_lock.release()
         response.term = self.current_term
         self.reset_election_timer()
         # if not request.entries:
@@ -178,10 +181,8 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
         self.appendLogEntries(request.entries)
         response.success = True
         if request.leaderCommit > self.commitIndex:
-            oldCommit = self.commitIndex
             self.commitIndex = min(request.leaderCommit, len(self.log)-1)
-            if self.commitIndex > oldCommit:
-                self.applyCommit()
+            self.applyCommit()
         self.raft_lock.release()
         return response
 
@@ -205,6 +206,7 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
         self.raft_lock.acquire()
         print("server {} election timeout, at term {}".format(self.server_id,self.current_term))
         self.role = Role.CANDIDATE
+        self.leader_id = -1
         self.current_term += 1
         self.voted_for = self.server_id
         request = raft_pb2.VoteRequest(term=self.current_term,candidateId=self.server_id,lastLogIndex=len(self.log)-1,lastLogTerm=self.getLogTerm(len(self.log)-1))
@@ -247,7 +249,7 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
                 self.votes += 1
                 self.vote_lock.release()
                 ## Have majority votes
-                if self.votes > len(self.cluster_config.servers)/2 and self.role == Role.CANDIDATE:
+                if self.votes >= (len(self.cluster_config.servers)+1)//2+1 and self.role == Role.CANDIDATE:
                     self.raft_lock.acquire()
                     self.role = Role.LEADER
                     ## reInitialize nextIndex and matchIndex after election
@@ -259,7 +261,8 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
                     print("server {} become leader".format(self.server_id))
                     
         except grpc.RpcError as e:
-            print(f"Error connecting to server {server_id}: {e}")
+            print(f"Can not connect to server {server_id}")
+
     
     # once heartbeat timeout
     def start_heartbeat(self):
@@ -282,13 +285,35 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
         for t in threads:
             t.join()
     
+    ## handle client append request
+    def ClientRequest(self, request, context):
+        print("server {} receive client append request".format(self.server_id))
+        if self.role != Role.LEADER:
+            return raft_pb2.ClientAppendResponse(status=0,response="",leaderHint=self.leader_id)
+        self.raft_lock.acquire()
+        entry = raft_pb2.LogEntry(term=self.current_term,command=request.command,value=request.value)
+        self.log.append(entry)
+
+        ## Append entries request to all other servers
+        threads = []
+        for server_id, server_address in self.cluster_config.servers.items():
+            if server_id == self.server_id:
+                continue
+            print("Server {} send append entries to server {}".format(self.server_id,server_id))
+            t = threading.Thread(target=self.send_append_entries, args=(server_address,server_id,[self.log[self.nextIndex[server_id]]]))
+            threads.append(t)
+            t.start()
+        self.raft_lock.acquire()
+        self.commitIndex += 1
+        self.raft_lock.release()
+        return raft_pb2.ClientAppendResponse(status=1,response="success",leaderHint=self.leader_id)
+    
     ## Send append entries RPC to specific server
     def send_append_entries(self,server_address,server_id,entries):
         request = raft_pb2.AppendEntriesRequest(term=self.current_term,leaderId=self.server_id,prevLogIndex=len(self.log)-1,prevLogTerm=self.getLogTerm(len(self.log)-1),entries=entries,leaderCommit=self.commitIndex)
         try:
             with grpc.insecure_channel(server_address) as channel:
                 stub = raft_pb2_grpc.RaftStub(channel)
-                request = raft_pb2.AppendEntriesRequest(term=self.current_term,leaderId=self.server_id,prevLogIndex=len(self.log)-1,prevLogTerm=self.getLogTerm(len(self.log)-1),entries=entries,leaderCommit=self.commitIndex)
                 response = stub.AppendEntries(request)
                 print(f"Response from server {server_id}: {response}")
 
@@ -299,12 +324,20 @@ class RaftServer(raft_pb2_grpc.RaftServicer):
                     self.role = Role.FOLLOWER
                     self.savePersistentState()
                     self.raft_lock.release()
+                if response.success:
+                    self.raft_lock.acquire()
+                    self.nextIndex[server_id] += 1
+                    self.raft_lock.release()
+                    return
         except grpc.RpcError as e:
-            print(f"Error connecting to server {server_id}: {e}")
+            print(f"Can not connect to server {server_id}")
 
     # apply entries to state machine
     def applyCommit(self):
-        pass
+        while self.lastApplied <= self.commitIndex:
+            self.lastApplied += 1
+            entry = self.log[self.lastApplied]
+            print("server {} apply log entry for term:{} ,command: {},value:{}to state machine ".format(self.server_id,entry.term,entry.command,entry.value))
 def main():
     meta={1:"localhost:50051",2:"localhost:50052",3:"localhost:50053"}
     server_id = (int)(sys.argv[1])
