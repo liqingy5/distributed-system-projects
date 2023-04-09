@@ -2,7 +2,6 @@ import grpc
 import sys
 import raft_pb2
 import raft_pb2_grpc
-import time
 
 class raft_client():
  def __init__(self):    
@@ -38,12 +37,14 @@ class raft_client():
       print("got client request index response: {}".format(self.req))
     except:
       print("cannot connect to " + str(self.peers[id]))
-client = raft_client()
-while(True):
- d = input("Enter 1. Client Append request ; 2. Client request Index\n")
- if (int(d) == 1):
-    f = input("Enter decree:\n")
-    client.client_append_request(f)
- else:
-    f = input("Enter Index value to be requested:\n")
-    client.client_req_index(f)
+
+if __name__ == '__main__':
+  client = raft_client()
+  while(True):
+    d = input("Enter 1. Client Append request ; 2. Client request Index\n")
+    if (int(d) == 1):
+        f = input("Enter decree:\n")
+        client.client_append_request(f)
+    else:
+        f = input("Enter Index value to be requested:\n")
+        client.client_req_index(f)
