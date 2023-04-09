@@ -4,3 +4,4 @@ examples
 .DS_Store
 logs
 states
+.vscode

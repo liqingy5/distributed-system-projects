@@ -221,10 +221,9 @@ def saveToDisk():
         log = raftserver.get_log()
         for entry in log.values():
             f.write(str(entry.term) + ' ' + str(entry.index) + ' ' + entry.decree + '\n')
-#Calling the save to disk function.
+#Calling the save to disk function if server is killed 
 register(saveToDisk)
 
-#Read the text file and store replica_number and address:Port as (key,value) pair in a Dictionary.
 if __name__ == '__main__':
     server_address = {}
     with open( './config.txt', 'r') as f:
@@ -235,15 +234,12 @@ if __name__ == '__main__':
             line = f.readline()
     print(server_address)
 
-    #Calling the Raft_server class.
     server_id = int(sys.argv[1])
     raftserver = RaftServer(server_address, server_id)
     server = grpc.server(futures.ThreadPoolExecutor())
     raft_pb2_grpc.add_RaftServerServicer_to_server(raftserver, server)
-    #Set default IP address and Port number is taken as argument.
     host, port = server_address[server_id].split(":")
     server.add_insecure_port(f"{host}:{port}")
-    #Start the server.
     server.start()
     while True:
         try:
