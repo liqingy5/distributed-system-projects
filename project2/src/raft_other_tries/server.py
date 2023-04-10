@@ -3,6 +3,7 @@ from concurrent import futures
 from os.path import isfile
 from math import ceil
 from random import random, uniform
+from google.protobuf.json_format import MessageToJson, Parse
 from time import time, sleep
 import enum
 import grpc
@@ -117,6 +118,18 @@ def groups_decoder(json_data):
     return groups
 
 
+def log_encoder(log):
+    return {key: MessageToJson(log[key]) for key in log.keys()}
+
+
+def log_decoder(json_dict):
+    log = {}
+    for key in json_dict.keys():
+        grpc_msg = Parse(json_dict[key], raft_pb2.Entry())
+        log[key] = grpc_msg
+    return log
+
+
 class RaftServer(raft_pb2_grpc.RaftServerServicer):
     # Initialization.
     def __init__(self, server_address, server_id):
@@ -145,17 +158,21 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
 
     def decodeFromFile(self):
         server_id = self.id
-        if (isfile(f'log_{server_id}.txt')):
-            with open(f'log_{server_id}.txt', 'r') as fp:
-                line = fp.readline()
-                while (line):
-                    temp = line.strip('\n').split(' ')
-                    entry = raft_pb2.Entry(
-                        term=int(temp[0]), index=int(temp[1]), type=int(temp[2]), value=temp[3])
-                    self.log[entry.index] = entry
-                    self.last_log_idx = entry.index
-                    self.last_log_term = entry.term
-                    line = fp.readline()
+        # if (isfile(f'log_{server_id}.txt')):
+        #     with open(f'log_{server_id}.txt', 'r') as fp:
+        #         line = fp.readline()
+        #         while (line):
+        #             temp = line.strip('\n').split(' ')
+        #             entry = raft_pb2.Entry(
+        #                 term=int(temp[0]), index=int(temp[1]), type=int(temp[2]), value=temp[3])
+        #             self.log[entry.index] = entry
+        #             self.last_log_idx = entry.index
+        #             self.last_log_term = entry.term
+        #             line = fp.readline()
+        if (isfile(f'log_{server_id}.json')):
+            with open(f'log_{server_id}.json', 'r') as fp:
+                self.log = log_decoder(json.load(fp))
+                print("Decode log success")
 
         if (isfile(f'groups_{server_id}.json')):
             with open(f'groups_{server_id}.json', 'r') as fp:
@@ -188,7 +205,7 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
                 self.voted_for = self.id
                 # Requesting Vote.
                 print(f"Server {self.id} is requesting vote")
-                req = raft_pb2.RequestVoteRequest(term=self.term, cadidateId=self.id, lastLogIndex=self.last_log_idx,
+                req = raft_pb2.RequestVoteRequest(term=self.term, candidateId=self.id, lastLogIndex=self.last_log_idx,
                                                   lastLogTerm=self.last_log_term)
                 for id in self.stubs.keys():
                     stub = self.stubs[id]
@@ -260,14 +277,14 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
         if (req.term > self.term):
             self.term = req.term
             self.voted_for = -1
-        if (req.term < self.term):
+        if (req.term < self.term) or (req.term == self.term and self.voted_for != -1 and self.voted_for != req.candidateId):
             print('Returning Vote Response as false since requested term is less')
             return raft_pb2.RequestVoteResponse(term=self.term, voteGranted=False)
-        if ((self.voted_for == -1 or self.voted_for == req.cadidateId) and (req.lastLogTerm > self.last_log_term or (
+        if ((self.voted_for == -1 or self.voted_for == req.candidateId) and (req.lastLogTerm > self.last_log_term or (
                 req.lastLogTerm == self.last_log_term and req.lastLogIndex >= self.last_log_idx))):
             self.role = Role.FOLLOWER
             print('I am a Follower!!!')
-            self.voted_for = req.cadidateId
+            self.voted_for = req.candidateId
             self.timeout = election_timeout()
             print('Returning Vote Response : granted vote')
             return raft_pb2.RequestVoteResponse(term=self.term, voteGranted=True)
@@ -296,12 +313,20 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
                 self.last_log_term = req.prevLogTerm
                 print(self.log)
                 print('Returning Append entries Response as True')
+            print(
+                f"Leader commit: {req.leaderCommit}, self commit: {self.commit_idx}, last log idx: {self.last_log_idx}")
             if (req.leaderCommit > self.commit_idx):
                 new_commit_idx = min(req.leaderCommit, self.last_log_idx)
+                print(f"new commit idx: {new_commit_idx}")
                 while new_commit_idx > self.commit_idx:
+                    print(
+                        "new_commit_idx > self.commit_idx, so processing client request")
+                    print("self.commit_idx: ", self.commit_idx)
+                    print(self.log[self.commit_idx+1])
                     self.commit_idx += 1
-                    self.processClientRequest(self.log[self.commit_idx])
-
+                    response = self.processClientRequest(
+                        self.log[self.commit_idx].request)
+                    print(response)
             return raft_pb2.AppendEntriesResponse(term=self.term, success=True)
         print('Returning Append entries Response as false')
         return raft_pb2.AppendEntriesResponse(term=self.term, success=False)
@@ -358,10 +383,10 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
         self.last_log_term = self.term
         self.last_log_idx += 1
         entry = raft_pb2.Entry(
-            term=self.term, index=self.last_log_idx, type=request.type, value=request.message)
+            term=self.term, index=self.last_log_idx, request=request)
         self.log[self.last_log_idx] = entry
         print(
-            f"Entry: {entry.term}, {entry.index}, {entry.type}, {entry.value}")
+            f"Entry: {entry.term}, {entry.index}, {entry.request.type}, {entry.request.message}")
         print('Sending Append entries Request...')
         req = raft_pb2.AppendEntriesRequest(term=self.term, leaderId=self.id, prevLogIndex=self.last_log_idx,
                                             prevLogTerm=self.last_log_term, entry=entry, leaderCommit=self.commit_idx)
@@ -468,11 +493,8 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
 
 def saveToDisk(server_id, raftserver):
     print("Writing...")
-    with open(f'log_{server_id}.txt', 'w') as f:
-        log = raftserver.log
-        for entry in log.values():
-            f.write(str(entry.term) + ' ' + str(entry.index) +
-                    ' ' + str(entry.type) + ' '+str(entry.value)+'\n')
+    with open(f'log_{server_id}.json', 'w') as f:
+        json.dump(log_encoder(raftserver.log), f, indent=4)
     with open(f'state_{server_id}.json', 'w') as f:
         persistant_state = {"term": raftserver.term,
                             "voted_for": raftserver.voted_for, "commit_idx": raftserver.commit_idx}

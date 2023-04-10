@@ -42,7 +42,7 @@ message Empty{
 
 message RequestVoteRequest {
     int32 term = 1;
-    int32 cadidateId = 2;
+    int32 candidateId = 2;
     int32 lastLogIndex = 3;
     int32 lastLogTerm = 4;
 }
@@ -69,8 +69,7 @@ message AppendEntriesResponse {
 message Entry {
     int32 term = 1;
     int32 index = 2;
-    int32 type = 3;
-    string value = 4;
+    ChatInput request = 3;
 }
 
 message ClientAppendRequest {

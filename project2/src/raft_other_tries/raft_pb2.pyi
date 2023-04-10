@@ -108,28 +108,26 @@ class Empty(_message.Message):
     def __init__(self) -> None: ...
 
 class Entry(_message.Message):
-    __slots__ = ["index", "term", "type", "value"]
+    __slots__ = ["index", "request", "term"]
     INDEX_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_FIELD_NUMBER: _ClassVar[int]
     TERM_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    VALUE_FIELD_NUMBER: _ClassVar[int]
     index: int
+    request: ChatInput
     term: int
-    type: int
-    value: str
-    def __init__(self, term: _Optional[int] = ..., index: _Optional[int] = ..., type: _Optional[int] = ..., value: _Optional[str] = ...) -> None: ...
+    def __init__(self, term: _Optional[int] = ..., index: _Optional[int] = ..., request: _Optional[_Union[ChatInput, _Mapping]] = ...) -> None: ...
 
 class RequestVoteRequest(_message.Message):
-    __slots__ = ["cadidateId", "lastLogIndex", "lastLogTerm", "term"]
-    CADIDATEID_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ["candidateId", "lastLogIndex", "lastLogTerm", "term"]
+    CANDIDATEID_FIELD_NUMBER: _ClassVar[int]
     LASTLOGINDEX_FIELD_NUMBER: _ClassVar[int]
     LASTLOGTERM_FIELD_NUMBER: _ClassVar[int]
     TERM_FIELD_NUMBER: _ClassVar[int]
-    cadidateId: int
+    candidateId: int
     lastLogIndex: int
     lastLogTerm: int
     term: int
-    def __init__(self, term: _Optional[int] = ..., cadidateId: _Optional[int] = ..., lastLogIndex: _Optional[int] = ..., lastLogTerm: _Optional[int] = ...) -> None: ...
+    def __init__(self, term: _Optional[int] = ..., candidateId: _Optional[int] = ..., lastLogIndex: _Optional[int] = ..., lastLogTerm: _Optional[int] = ...) -> None: ...
 
 class RequestVoteResponse(_message.Message):
     __slots__ = ["term", "voteGranted"]
