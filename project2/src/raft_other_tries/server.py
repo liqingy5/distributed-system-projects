@@ -25,12 +25,12 @@ class Role(enum.Enum):
 
 
 def election_timeout():
-    return time()+uniform(11, 13)
+    return time()+uniform(5, 8)
 # Timeout for heartbeat.
 
 
 def heartbeat_timeout():
-    return time()+5
+    return time()+3
 
 # Chat room class to store information about a chat room
 
@@ -127,7 +127,7 @@ def log_decoder(json_dict):
     log = {}
     for key in json_dict.keys():
         grpc_msg = Parse(json_dict[key], raft_pb2.Entry())
-        log[key] = grpc_msg
+        log[int(key)] = grpc_msg
     return log
 
 
@@ -218,9 +218,10 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
                         print('Got request vote response: {}'.format(response))
                         if (response.voteGranted):
                             self.vote_count += 1
-                    except:
+                    except grpc.RpcError as e:
                         print('cannot connect to ' +
                               str(self.peers_address[id]))
+                        print(e)
                 self.timeout = election_timeout()
             elif (self.vote_count >= (len(self.peers_address) + 1) // 2 + 1):
                 self.role = Role.LEADER
@@ -251,7 +252,8 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
                             prevLogIndex -= 1
                             entry = self.log[prevLogIndex]
                             # Append Entries Request.
-                            print('Sending Append entries request...')
+                            print(
+                                f'Sending Append entries request to server {id} with {entry}')
                             req = raft_pb2.AppendEntriesRequest(term=self.term, leaderId=self.id,
                                                                 prevLogIndex=prevLogIndex, prevLogTerm=entry.term,
                                                                 entry=entry, leaderCommit=self.commit_idx)
@@ -269,9 +271,10 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
                             response = stub.AppendEntries(req)
                             print('I am the Leader!!!')
                             print('Got append entries response: {}'.format(response))
-                    except:
+                    except grpc.RpcError as e:
                         print('cannot connect to ' +
                               str(self.peers_address[id]))
+                        print(e)
                 self.timeout = heartbeat_timeout()
 
     # Function to Request Vote.
@@ -307,17 +310,8 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
         self.term = req.term
         self.leader_id = req.leaderId
         self.timeout = election_timeout()
-        if (req.prevLogIndex >= self.last_log_idx and req.prevLogTerm >= self.last_log_term):
-            if (req.prevLogIndex == self.last_log_idx and req.prevLogTerm == self.last_log_term):
-                print('Returning Append entries Response as True')
-            else:
-                self.log[req.entry.index] = req.entry
-                self.last_log_idx += 1
-                self.last_log_term = req.prevLogTerm
-                print(self.log)
-                print('Returning Append entries Response as True')
-            print(
-                f"Leader commit: {req.leaderCommit}, self commit: {self.commit_idx}, last log idx: {self.last_log_idx}")
+        if (req.prevLogIndex == self.last_log_idx and req.prevLogTerm == self.last_log_term):
+            print('Returning Append entries Response as True')
             if (req.leaderCommit > self.commit_idx):
                 new_commit_idx = min(req.leaderCommit, self.last_log_idx)
                 print(f"new commit idx: {new_commit_idx}")
@@ -329,7 +323,25 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
                     self.commit_idx += 1
                     response = self.processClientRequest(
                         self.log[self.commit_idx].request)
-                    print(response)
+            return raft_pb2.AppendEntriesResponse(term=self.term, success=True)
+        elif (req.prevLogIndex == self.last_log_idx+1 and req.prevLogTerm >= self.last_log_term):
+            print(
+                f"Receive entry from leader: {req.leaderId} ,index: {req.prevLogIndex} prevLogTerm:{req.prevLogTerm} with Entry:{req.entry} ")
+            self.log[req.entry.index] = req.entry
+            self.last_log_idx += 1
+            self.last_log_term = req.prevLogTerm
+            if (req.leaderCommit > self.commit_idx):
+                new_commit_idx = min(req.leaderCommit, self.last_log_idx)
+                print(f"new commit idx: {new_commit_idx}")
+                while new_commit_idx > self.commit_idx:
+                    print(
+                        "new_commit_idx > self.commit_idx, so processing client request")
+                    print("self.commit_idx: ", self.commit_idx)
+                    print(self.log[self.commit_idx+1])
+                    self.commit_idx += 1
+                    response = self.processClientRequest(
+                        self.log[self.commit_idx].request)
+            print('Returning Append entries Response as True')
             return raft_pb2.AppendEntriesResponse(term=self.term, success=True)
         print('Returning Append entries Response as false')
         return raft_pb2.AppendEntriesResponse(term=self.term, success=False)
@@ -400,8 +412,10 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
                 response = stub.AppendEntries(req)
                 print('I am the Leader!!!')
                 print('Got append entries response: {}'.format(response))
-            except:
-                print('cannot connect to ' + str(self.peers_address[id]))
+            except grpc.RpcError as e:
+                print('cannot connect to ' +
+                      str(self.peers_address[id]))
+                print(e)
 
         response = self.processClientRequest(request)
         self.commit_idx += 1

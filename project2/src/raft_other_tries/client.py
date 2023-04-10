@@ -3,6 +3,7 @@ import raft_pb2
 import raft_pb2_grpc
 import threading
 import uuid
+import json
 
 COMMANDS = {
     "u": 1,  # login
@@ -25,16 +26,14 @@ class raftClient():
         self.exit = False
         self.uuid = str(uuid.uuid4())
         print("Reading config file where we store the server addresses")
-        with open("./config.txt", "r") as f:
-            line = f.readline()
-            while (line):
-                id, addr = line.split()
-                self.peers[int(id)] = addr
-                channel = grpc.insecure_channel(addr)
+        with open("./config.json", "r") as f:
+            address_dict = json.load(f)
+            for key, value in address_dict.items():
+                self.peers[int(key)] = value
+                channel = grpc.insecure_channel(value)
                 stub = raft_pb2_grpc.RaftServerStub(channel)
-                self.channels[int(id)] = channel
-                self.stubs[int(id)] = stub
-                line = f.readline()
+                self.channels[int(key)] = channel
+                self.stubs[int(key)] = stub
 
     # def client_append_request(self, string):
     #     k = string
