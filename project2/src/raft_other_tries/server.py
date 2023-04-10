@@ -13,6 +13,7 @@ import raft_pb2_grpc
 import threading
 import asyncio
 import json
+import argparse
 
 
 class Role(enum.Enum):
@@ -513,15 +514,19 @@ def saveToDisk(server_id, raftserver):
 
 def start_server():
     server_address = {}
-    with open('./config.txt', 'r') as f:
-        line = f.readline()
-        while (line):
-            id, addr = line.split()
-            server_address[int(id)] = addr
-            line = f.readline()
+    with open('./config.json', 'r') as f:
+        addr_dict = json.load(f)
+        for key, value in addr_dict.items():
+            server_address[int(key)] = value
     print(server_address)
-
-    server_id = int(sys.argv[1])
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-id", help="Server id")
+    args = parser.parse_args()
+    if args.id is None:
+        print(
+            "Please specify server id with command : python ./server.py -id [id]")
+        sys.exit(1)
+    server_id = int(args.id)
     raftserver = RaftServer(server_address, server_id)
     server = grpc.server(futures.ThreadPoolExecutor())
     raft_pb2_grpc.add_RaftServerServicer_to_server(raftserver, server)
@@ -532,7 +537,6 @@ def start_server():
 
     while True:
         try:
-            sleep(0.1)
             raftserver.update()
         except KeyboardInterrupt:
             server.stop(0)

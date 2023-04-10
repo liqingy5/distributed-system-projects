@@ -2,7 +2,7 @@ import sys, argparse
 import subprocess
 import time
 
-RUN_COMMAND   = "./chat_server"
+RUN_COMMAND   = "./server"
 # Script assumes chat server is launched with the command:
 #     ./chat_server -id [id]
 # where [id] is the ID of the server (an integer from 1-5)
