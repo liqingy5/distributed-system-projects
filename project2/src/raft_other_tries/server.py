@@ -191,6 +191,8 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
                 self.term = data['term']
                 self.voted_for = data['voted_for']
                 self.commit_idx = data['commit_idx']
+                self.last_log_idx = data['last_log_idx']
+                self.last_log_term = data['last_log_term']
 
     # Function to Update my state once in a while.
     def update(self):
@@ -277,7 +279,7 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
         if (req.term > self.term):
             self.term = req.term
             self.voted_for = -1
-        if (req.term < self.term) or (req.term == self.term and self.voted_for != -1 and self.voted_for != req.candidateId):
+        if (req.term < self.term) or (req.term == self.term and self.voted_for != -1 and self.voted_for != req.candidateId and self.last_log_idx > req.prevLogIndex):
             print('Returning Vote Response as false since requested term is less')
             return raft_pb2.RequestVoteResponse(term=self.term, voteGranted=False)
         if ((self.voted_for == -1 or self.voted_for == req.candidateId) and (req.lastLogTerm > self.last_log_term or (
@@ -497,7 +499,7 @@ def saveToDisk(server_id, raftserver):
         json.dump(log_encoder(raftserver.log), f, indent=4)
     with open(f'state_{server_id}.json', 'w') as f:
         persistant_state = {"term": raftserver.term,
-                            "voted_for": raftserver.voted_for, "commit_idx": raftserver.commit_idx}
+                            "voted_for": raftserver.voted_for, "commit_idx": raftserver.commit_idx, "last_log_idx": raftserver.last_log_idx, "last_log_term": raftserver.last_log_term}
         json.dump(persistant_state, f)
     with open(f'groups_{server_id}.json', 'w') as f:
         json.dump(raftserver.groups, f, indent=4, cls=ChatRoomEncoder)
