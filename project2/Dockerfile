@@ -14,6 +14,6 @@ RUN openssl s_client -showcerts -connect github.com:443 </dev/null 2>/dev/null|o
 RUN update-ca-certificates
 
 # Install python extensions for protoc
-COPY src /project1/src
-WORKDIR /project1/src
+COPY src /project2/src
+WORKDIR /project2/src
 RUN pip install -r requirement.txt

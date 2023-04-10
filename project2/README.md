@@ -1,4 +1,4 @@
-# Project 1: Group Chat Command Line Application Using gRPC
+# Project 2: Replicated version of the group chat system
 
 ## Docker setup
 
@@ -8,7 +8,7 @@ a Docker image with all of the necessary dependencies.
 To build the image, run:
 
 ```
-docker build . -t "groupchat"
+docker build . -t "cs2510_p2"
 ```
 
 ### Basic single-container setup
@@ -16,7 +16,7 @@ docker build . -t "groupchat"
 To run a container using this image, you can run:
 
 ```
-docker run -it --name groupchat groupchat
+docker run -it --name cs2510_p2 cs2510_p2
 ```
 
 This command will give you an interactive bash shell on the container.
@@ -25,13 +25,13 @@ one shell for your server and one for your client), you can run (in a separate
 terminal window):
 
 ```
-docker exec -it groupchat bash
+docker exec -it cs2510_p2 bash
 ```
 
 When you are done using the container, remove it with:
 
 ```
-docker rm groupchat
+docker rm cs2510_p2
 ```
 
 ## Run group chat application
@@ -39,7 +39,7 @@ docker rm groupchat
 To start the server, run:
 
 ```
-python3 server.py
+python3 server.py -id [id] (1-5)
 ```
 
 The server has been set to listen on port 8001
@@ -48,12 +48,6 @@ To start a client, run:
 
 ```
 python3 client.py
-```
-
-After starting, to connect to the server, type
-
-```
-c localhost 8001
 ```
 
 Our application support all commands showing in the project description, we also provide a demo video as reference.

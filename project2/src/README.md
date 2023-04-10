@@ -1,7 +1,6 @@
 # Group chat Server/Client
 
-A group chat application applied Raft consensus algorithm 
-
+Group chat system utilizing Raft Concesus Algorithm 
 ## Prerequisites
 
 - Python 3.11.1
