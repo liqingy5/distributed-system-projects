@@ -11,6 +11,7 @@ import raft_pb2
 import raft_pb2_grpc
 import threading
 import asyncio
+import json
 
 
 class Role(enum.Enum):
@@ -84,6 +85,38 @@ class ChatMessage:
         self.likes = set()
 
 
+class ChatRoomEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, ChatMessage):
+            return {
+                'id': obj.id,
+                'user': obj.user,
+                'message': obj.message,
+                'likes': list(obj.likes)
+            }
+        elif isinstance(obj, ChatRoom):
+            return {
+                'name': obj.name,
+                'users': obj.users,
+                'messages': obj.messages
+            }
+        return super(ChatRoomEncoder, self).default(obj)
+
+
+def groups_decoder(json_data):
+    groups = {}
+    for key, room_data in json_data.items():
+        room = ChatRoom(room_data['name'])
+        room.users = room_data['users']
+        for message_data in room_data['messages']:
+            message = ChatMessage(
+                message_data['id'], message_data['user'], message_data['message'])
+            message.likes = set(message_data['likes'])
+            room.messages.append(message)
+        groups[key] = room
+    return groups
+
+
 class RaftServer(raft_pb2_grpc.RaftServerServicer):
     # Initialization.
     def __init__(self, server_address, server_id):
@@ -107,6 +140,11 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
         self.voted_for = -1
         self.stubs = {_id: raft_pb2_grpc.RaftServerStub(grpc.insecure_channel(
             server_address[_id])) for _id in server_address.keys() if _id != self.id}
+
+        self.decodeFromFile()
+
+    def decodeFromFile(self):
+        server_id = self.id
         if (isfile(f'log_{server_id}.txt')):
             with open(f'log_{server_id}.txt', 'r') as fp:
                 line = fp.readline()
@@ -119,6 +157,24 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
                     self.last_log_term = entry.term
                     line = fp.readline()
 
+        if (isfile(f'groups_{server_id}.json')):
+            with open(f'groups_{server_id}.json', 'r') as fp:
+                self.groups = groups_decoder(json.load(fp))
+
+        if (isfile(f'users_{server_id}.json')):
+            with open(f'users_{server_id}.json', 'r') as fp:
+                self.users = json.load(fp)
+        if (isfile(f'lastId_{server_id}.json')):
+            with open(f'lastId_{server_id}.json', 'r') as fp:
+                self.lastId = json.load(fp)
+
+        if (isfile(f'state_{server_id}.json')):
+            with open(f'state_{server_id}.json', 'r') as fp:
+                data = json.load(fp)
+                self.term = data['term']
+                self.voted_for = data['voted_for']
+                self.commit_idx = data['commit_idx']
+
     # Function to Update my state once in a while.
     def update(self):
         if (self.role == Role.FOLLOWER):
@@ -129,6 +185,7 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
             if (time() > self.timeout):
                 self.term += 1
                 self.vote_count = 1
+                self.voted_for = self.id
                 # Requesting Vote.
                 print(f"Server {self.id} is requesting vote")
                 req = raft_pb2.RequestVoteRequest(term=self.term, cadidateId=self.id, lastLogIndex=self.last_log_idx,
@@ -148,7 +205,8 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
             elif (self.vote_count >= (len(self.peers_address) + 1) // 2 + 1):
                 self.role = Role.LEADER
                 self.vote_count = 1
-                self.voted_for = self.id
+                self.voted_for = -1
+                self.leader_id = self.id
                 self.timeout = time()
                 print('Now I am the Leader!!!')
         elif (self.role == Role.LEADER):
@@ -229,15 +287,21 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
         self.term = req.term
         self.leader_id = req.leaderId
         self.timeout = election_timeout()
-        if (req.prevLogIndex == self.last_log_idx + 1 and req.prevLogTerm >= self.last_log_term):
-            self.log[req.entry.index] = req.entry
-            self.last_log_idx += 1
-            self.last_log_term = req.prevLogTerm
-            print(self.log)
-            print('Returning Append entries Response as True')
-            return raft_pb2.AppendEntriesResponse(term=self.term, success=True)
-        if (req.prevLogIndex == self.last_log_idx and req.prevLogTerm == self.last_log_term):
-            print('Returning Append entries Response as True')
+        if (req.prevLogIndex >= self.last_log_idx and req.prevLogTerm >= self.last_log_term):
+            if (req.prevLogIndex == self.last_log_idx and req.prevLogTerm == self.last_log_term):
+                print('Returning Append entries Response as True')
+            else:
+                self.log[req.entry.index] = req.entry
+                self.last_log_idx += 1
+                self.last_log_term = req.prevLogTerm
+                print(self.log)
+                print('Returning Append entries Response as True')
+            if (req.leaderCommit > self.commit_idx):
+                new_commit_idx = min(req.leaderCommit, self.last_log_idx)
+                while new_commit_idx > self.commit_idx:
+                    self.commit_idx += 1
+                    self.processClientRequest(self.log[self.commit_idx])
+
             return raft_pb2.AppendEntriesResponse(term=self.term, success=True)
         print('Returning Append entries Response as false')
         return raft_pb2.AppendEntriesResponse(term=self.term, success=False)
@@ -409,6 +473,18 @@ def saveToDisk(server_id, raftserver):
         for entry in log.values():
             f.write(str(entry.term) + ' ' + str(entry.index) +
                     ' ' + str(entry.type) + ' '+str(entry.value)+'\n')
+    with open(f'state_{server_id}.json', 'w') as f:
+        persistant_state = {"term": raftserver.term,
+                            "voted_for": raftserver.voted_for, "commit_idx": raftserver.commit_idx}
+        json.dump(persistant_state, f)
+    with open(f'groups_{server_id}.json', 'w') as f:
+        json.dump(raftserver.groups, f, indent=4, cls=ChatRoomEncoder)
+
+    with open(f'users_{server_id}.json', 'w') as f:
+        json.dump(raftserver.users, f)
+
+    with open(f'lastId_{server_id}.json', 'w') as f:
+        json.dump(raftserver.lastId, f)
 
 
 def start_server():
