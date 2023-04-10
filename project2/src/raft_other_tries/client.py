@@ -36,28 +36,28 @@ class raftClient():
                 self.stubs[int(id)] = stub
                 line = f.readline()
 
-    def client_append_request(self, string):
-        k = string
-        for id in self.stubs.keys():
-            stub = self.stubs[id]
-            print("Contacting", self.peers[id])
-            try:
-                self.req = stub.ClientAppend(
-                    raft_pb2.ClientAppendRequest(decree=k))
-                print("got client append response: {}".format(self.req))
-            except:
-                print("cannot connect to " + str(self.peers[id]))
+    # def client_append_request(self, string):
+    #     k = string
+    #     for id in self.stubs.keys():
+    #         stub = self.stubs[id]
+    #         print("Contacting", self.peers[id])
+    #         try:
+    #             self.req = stub.ClientAppend(
+    #                 raft_pb2.ClientAppendRequest(decree=k))
+    #             print("got client append response: {}".format(self.req))
+    #         except:
+    #             print("cannot connect to " + str(self.peers[id]))
 
-    def client_req_index(self, index_num):
-        k = index_num
-        for id in self.stubs.keys():
-            stub = self.stubs[id]
-            try:
-                self.req = stub.ClientRequestIndex(
-                    raft_pb2.ClientRequestIndexRequest(index=int(k)))
-                print("got client request index response: {}".format(self.req))
-            except:
-                print("cannot connect to " + str(self.peers[id]))
+    # def client_req_index(self, index_num):
+    #     k = index_num
+    #     for id in self.stubs.keys():
+    #         stub = self.stubs[id]
+    #         try:
+    #             self.req = stub.ClientRequestIndex(
+    #                 raft_pb2.ClientRequestIndexRequest(index=int(k)))
+    #             print("got client request index response: {}".format(self.req))
+    #         except:
+    #             print("cannot connect to " + str(self.peers[id]))
 
     # Getting user input and sending messages to server
     def send(self):
@@ -106,6 +106,7 @@ class raftClient():
                         request = raft_pb2.ChatInput(
                             type=_type, message=_message, userName=_message, groupName="", messageId=0, uuid=self.uuid)
                         response = self.sendChatInput(request)
+                        print(response)
                         if response != False:
                             self.loginName = _message
                             print("Login as: " + self.loginName)
@@ -172,8 +173,8 @@ class raftClient():
         if (self.listen_thread != None):
             self.listen_thread.join()
         # Close the channel connection
-        for channel in self.channels:
-            channel.close()
+        for id in self.channels.keys():
+            self.channels[id].close()
 
     # listening to server messages
     def listen(self):
@@ -208,7 +209,6 @@ class raftClient():
                 if response.status == "success":
                     return response
             except grpc.RpcError as e:
-                print(f"Can not connect to server {id}")
                 continue
         return False
 

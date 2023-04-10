@@ -22,12 +22,12 @@ class Role(enum.Enum):
 
 
 def election_timeout():
-    return time()+uniform(1, 3)
+    return time()+uniform(11, 13)
 # Timeout for heartbeat.
 
 
 def heartbeat_timeout():
-    return time()+0.5
+    return time()+5
 
 # Chat room class to store information about a chat room
 
@@ -113,7 +113,7 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
                 while (line):
                     temp = line.strip('\n').split(' ')
                     entry = raft_pb2.Entry(
-                        term=int(temp[0]), index=int(temp[1]), decree=temp[2])
+                        term=int(temp[0]), index=int(temp[1]), type=int(temp[2]), value=temp[3])
                     self.log[entry.index] = entry
                     self.last_log_idx = entry.index
                     self.last_log_term = entry.term
@@ -242,21 +242,66 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
         print('Returning Append entries Response as false')
         return raft_pb2.AppendEntriesResponse(term=self.term, success=False)
 
-    # Function to handle Client Append Request.
-    def ClientAppend(self, req, context):
-        print('Got client append: {}'.format(req))
+    # # Function to handle Client Append Request.
+    # def ClientAppend(self, req, context):
+    #     print('Got client append: {}'.format(req))
+    #     if (self.role != Role.LEADER):
+    #         print('Returning Client append Response as rc = 1 since I am not a leader')
+    #         return raft_pb2.ClientAppendResponse(rc=1, leader=self.leader_id, index=self.last_log_idx)
+    #     self.last_log_term = self.term
+    #     self.last_log_idx += 1
+    #     entry = raft_pb2.Entry(
+    #         term=self.term, index=self.last_log_idx, decree=req.decree)
+    #     self.log[self.last_log_idx] = entry
+    #     # Append Entries Request.
+    #     print('Sending Append entries Request...')
+    #     req = raft_pb2.AppendEntriesRequest(term=self.term, leaderId=self.id, prevLogIndex=self.last_log_idx,
+    #                                         prevLogTerm=self.last_log_term, entry=entry, leaderCommit=self.commit_idx)
+    #     for id in self.stubs.keys():
+    #         stub = self.stubs[id]
+    #         try:
+    #             response = stub.AppendEntries(req)
+    #             print('I am the Leader!!!')
+    #             print('Got append entries response: {}'.format(response))
+    #         except:
+    #             print('cannot connect to ' + str(self.peers_address[id]))
+    #     self.commit_idx += 1
+    #     self.timeout = heartbeat_timeout()
+    #     print('Returning Client append Response as rc = 0')
+    #     return raft_pb2.ClientAppendResponse(rc=0, leader=self.id, index=self.last_log_idx)
+
+    # # Function to handle client request index.
+    # def ClientRequestIndex(self, req, context):
+    #     print('Got client request index: {}'.format(req))
+    #     if (req.index in self.log):
+    #         print('Returning Client request index Response as rc = 0')
+    #         return raft_pb2.ClientRequestIndexResponse(rc=0, leader=self.leader_id, index=req.index,
+    #                                                    decree=self.log[req.index].decree)
+    #     if (self.role != Role.LEADER):
+    #         print(
+    #             'Returning Client request index Response as rc = 1 since I am not a leader')
+    #         return raft_pb2.ClientRequestIndexResponse(rc=1, leader=self.leader_id, index=req.index, decree=None)
+    #     print('Returning Client request index Response as rc = 0')
+    #     return raft_pb2.ClientRequestIndexResponse(rc=0, leader=self.leader_id, index=req.index, decree=None)
+
+    def chatFunction(self, request, context):
+        # type 1: login, 2: join, 3: chat, 4: like, 5: dislike, 6: history
         if (self.role != Role.LEADER):
-            print('Returning Client append Response as rc = 1 since I am not a leader')
-            return raft_pb2.ClientAppendResponse(rc=1, leader=self.leader_id, index=self.last_log_idx)
+            print(
+                'Returning Client chat response with status as failed since I am not a leader')
+            return raft_pb2.ChatOutput(status="failed", messages=[])
+        print('Request from Client: {}'.format(request))
         self.last_log_term = self.term
         self.last_log_idx += 1
         entry = raft_pb2.Entry(
-            term=self.term, index=self.last_log_idx, decree=req.decree)
+            term=self.term, index=self.last_log_idx, type=request.type, value=request.message)
         self.log[self.last_log_idx] = entry
-        # Append Entries Request.
+        print(
+            f"Entry: {entry.term}, {entry.index}, {entry.type}, {entry.value}")
         print('Sending Append entries Request...')
         req = raft_pb2.AppendEntriesRequest(term=self.term, leaderId=self.id, prevLogIndex=self.last_log_idx,
                                             prevLogTerm=self.last_log_term, entry=entry, leaderCommit=self.commit_idx)
+
         for id in self.stubs.keys():
             stub = self.stubs[id]
             try:
@@ -265,31 +310,15 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
                 print('Got append entries response: {}'.format(response))
             except:
                 print('cannot connect to ' + str(self.peers_address[id]))
+
+        response = self.processClientRequest(request)
         self.commit_idx += 1
         self.timeout = heartbeat_timeout()
-        print('Returning Client append Response as rc = 0')
-        return raft_pb2.ClientAppendResponse(rc=0, leader=self.id, index=self.last_log_idx)
+        print('Returning Client chat response with status as success')
+        print(response)
+        return response
 
-    # Function to handle client request index.
-    def ClientRequestIndex(self, req, context):
-        print('Got client request index: {}'.format(req))
-        if (req.index in self.log):
-            print('Returning Client request index Response as rc = 0')
-            return raft_pb2.ClientRequestIndexResponse(rc=0, leader=self.leader_id, index=req.index,
-                                                       decree=self.log[req.index].decree)
-        if (self.role != Role.LEADER):
-            print(
-                'Returning Client request index Response as rc = 1 since I am not a leader')
-            return raft_pb2.ClientRequestIndexResponse(rc=1, leader=self.leader_id, index=req.index, decree=None)
-        print('Returning Client request index Response as rc = 0')
-        return raft_pb2.ClientRequestIndexResponse(rc=0, leader=self.leader_id, index=req.index, decree=None)
-
-    # Storing Log Information.
-    def get_log(self):
-        return self.log
-
-    def chatFunction(self, request, context):
-        # type 1: login, 2: join, 3: chat, 4: like, 5: dislike, 6: history
+    def processClientRequest(self, request):
         try:
             _type = request.type
             if _type == 1:
@@ -373,6 +402,15 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
                     yield raft_pb2.ChatMessage(id=message.id, user=message.user, content=message.message, numberOfLikes=len(message.likes))
 
 
+def saveToDisk(server_id, raftserver):
+    print("Writing...")
+    with open(f'log_{server_id}.txt', 'w') as f:
+        log = raftserver.log
+        for entry in log.values():
+            f.write(str(entry.term) + ' ' + str(entry.index) +
+                    ' ' + str(entry.type) + ' '+str(entry.value)+'\n')
+
+
 def start_server():
     server_address = {}
     with open('./config.txt', 'r') as f:
@@ -387,18 +425,11 @@ def start_server():
     raftserver = RaftServer(server_address, server_id)
     server = grpc.server(futures.ThreadPoolExecutor())
     raft_pb2_grpc.add_RaftServerServicer_to_server(raftserver, server)
-
-    def saveToDisk():
-        print("Writing...")
-        with open(f'log_{server_id}.txt', 'w') as f:
-            log = raftserver.get_log()
-            for entry in log.values():
-                f.write(str(entry.term) + ' ' + str(entry.index) +
-                        ' ' + entry.decree + '\n')
-    register(saveToDisk)
     host, port = server_address[server_id].split(":")
     server.add_insecure_port(f"{host}:{port}")
     server.start()
+    register(saveToDisk, server_id, raftserver)
+
     while True:
         try:
             sleep(0.1)

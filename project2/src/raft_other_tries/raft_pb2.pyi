@@ -68,10 +68,12 @@ class ChatOutput(_message.Message):
     def __init__(self, status: _Optional[str] = ..., messages: _Optional[_Iterable[_Union[ChatMessage, _Mapping]]] = ..., user: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ClientAppendRequest(_message.Message):
-    __slots__ = ["decree"]
-    DECREE_FIELD_NUMBER: _ClassVar[int]
-    decree: str
-    def __init__(self, decree: _Optional[str] = ...) -> None: ...
+    __slots__ = ["type", "value"]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    type: int
+    value: str
+    def __init__(self, type: _Optional[int] = ..., value: _Optional[str] = ...) -> None: ...
 
 class ClientAppendResponse(_message.Message):
     __slots__ = ["index", "leader", "rc"]
@@ -106,14 +108,16 @@ class Empty(_message.Message):
     def __init__(self) -> None: ...
 
 class Entry(_message.Message):
-    __slots__ = ["decree", "index", "term"]
-    DECREE_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ["index", "term", "type", "value"]
     INDEX_FIELD_NUMBER: _ClassVar[int]
     TERM_FIELD_NUMBER: _ClassVar[int]
-    decree: str
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
     index: int
     term: int
-    def __init__(self, term: _Optional[int] = ..., index: _Optional[int] = ..., decree: _Optional[str] = ...) -> None: ...
+    type: int
+    value: str
+    def __init__(self, term: _Optional[int] = ..., index: _Optional[int] = ..., type: _Optional[int] = ..., value: _Optional[str] = ...) -> None: ...
 
 class RequestVoteRequest(_message.Message):
     __slots__ = ["cadidateId", "lastLogIndex", "lastLogTerm", "term"]
