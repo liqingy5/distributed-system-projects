@@ -25,12 +25,12 @@ class Role(enum.Enum):
 
 
 def election_timeout():
-    return time()+uniform(5, 8)
+    return time()+uniform(0.3, 0.6)
 # Timeout for heartbeat.
 
 
 def heartbeat_timeout():
-    return time()+3
+    return time()+0.05
 
 # Chat room class to store information about a chat room
 
@@ -249,7 +249,8 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
                         print('I am the Leader!!!')
                         print('Got append entries response: {}'.format(response))
                         while (response.success == False):
-                            prevLogIndex -= 1
+                            if (prevLogIndex > 1):
+                                prevLogIndex -= 1
                             entry = self.log[prevLogIndex]
                             # Append Entries Request.
                             print(
@@ -312,17 +313,6 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
         self.timeout = election_timeout()
         if (req.prevLogIndex == self.last_log_idx and req.prevLogTerm == self.last_log_term):
             print('Returning Append entries Response as True')
-            if (req.leaderCommit > self.commit_idx):
-                new_commit_idx = min(req.leaderCommit, self.last_log_idx)
-                print(f"new commit idx: {new_commit_idx}")
-                while new_commit_idx > self.commit_idx:
-                    print(
-                        "new_commit_idx > self.commit_idx, so processing client request")
-                    print("self.commit_idx: ", self.commit_idx)
-                    print(self.log[self.commit_idx+1])
-                    self.commit_idx += 1
-                    response = self.processClientRequest(
-                        self.log[self.commit_idx].request)
             return raft_pb2.AppendEntriesResponse(term=self.term, success=True)
         elif (req.prevLogIndex == self.last_log_idx+1 and req.prevLogTerm >= self.last_log_term):
             print(
@@ -330,17 +320,19 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
             self.log[req.entry.index] = req.entry
             self.last_log_idx += 1
             self.last_log_term = req.prevLogTerm
-            if (req.leaderCommit > self.commit_idx):
-                new_commit_idx = min(req.leaderCommit, self.last_log_idx)
-                print(f"new commit idx: {new_commit_idx}")
-                while new_commit_idx > self.commit_idx:
-                    print(
-                        "new_commit_idx > self.commit_idx, so processing client request")
-                    print("self.commit_idx: ", self.commit_idx)
-                    print(self.log[self.commit_idx+1])
-                    self.commit_idx += 1
-                    response = self.processClientRequest(
-                        self.log[self.commit_idx].request)
+            self.processClientRequest(req.entry.request)
+            self.commit_idx += 1
+            # if (req.leaderCommit > self.commit_idx):
+            #     new_commit_idx = min(req.leaderCommit, self.last_log_idx)
+            #     print(f"new commit idx: {new_commit_idx}")
+            #     while new_commit_idx > self.commit_idx:
+            #         print(
+            #             "new_commit_idx > self.commit_idx, so processing client request")
+            #         print("self.commit_idx: ", self.commit_idx)
+            #         print(self.log[self.commit_idx+1])
+            #         self.commit_idx += 1
+            #         response = self.processClientRequest(
+            #             self.log[self.commit_idx].request)
             print('Returning Append entries Response as True')
             return raft_pb2.AppendEntriesResponse(term=self.term, success=True)
         print('Returning Append entries Response as false')
