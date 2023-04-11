@@ -15,6 +15,8 @@ import asyncio
 import json
 import argparse
 
+DEBUG = True
+
 
 class Role(enum.Enum):
     FOLLOWER = 1
@@ -25,12 +27,12 @@ class Role(enum.Enum):
 
 
 def election_timeout():
-    return time()+uniform(0.3, 0.6)
+    return time()+uniform(0.6, 0.9)
 # Timeout for heartbeat.
 
 
 def heartbeat_timeout():
-    return time()+0.05
+    return time()+0.3
 
 # Chat room class to store information about a chat room
 
@@ -159,17 +161,6 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
 
     def decodeFromFile(self):
         server_id = self.id
-        # if (isfile(f'log_{server_id}.txt')):
-        #     with open(f'log_{server_id}.txt', 'r') as fp:
-        #         line = fp.readline()
-        #         while (line):
-        #             temp = line.strip('\n').split(' ')
-        #             entry = raft_pb2.Entry(
-        #                 term=int(temp[0]), index=int(temp[1]), type=int(temp[2]), value=temp[3])
-        #             self.log[entry.index] = entry
-        #             self.last_log_idx = entry.index
-        #             self.last_log_term = entry.term
-        #             line = fp.readline()
         if (isfile(f'log_{server_id}.json')):
             with open(f'log_{server_id}.json', 'r') as fp:
                 self.log = log_decoder(json.load(fp))
@@ -322,63 +313,10 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
             self.last_log_term = req.prevLogTerm
             self.processClientRequest(req.entry.request)
             self.commit_idx += 1
-            # if (req.leaderCommit > self.commit_idx):
-            #     new_commit_idx = min(req.leaderCommit, self.last_log_idx)
-            #     print(f"new commit idx: {new_commit_idx}")
-            #     while new_commit_idx > self.commit_idx:
-            #         print(
-            #             "new_commit_idx > self.commit_idx, so processing client request")
-            #         print("self.commit_idx: ", self.commit_idx)
-            #         print(self.log[self.commit_idx+1])
-            #         self.commit_idx += 1
-            #         response = self.processClientRequest(
-            #             self.log[self.commit_idx].request)
             print('Returning Append entries Response as True')
             return raft_pb2.AppendEntriesResponse(term=self.term, success=True)
         print('Returning Append entries Response as false')
         return raft_pb2.AppendEntriesResponse(term=self.term, success=False)
-
-    # # Function to handle Client Append Request.
-    # def ClientAppend(self, req, context):
-    #     print('Got client append: {}'.format(req))
-    #     if (self.role != Role.LEADER):
-    #         print('Returning Client append Response as rc = 1 since I am not a leader')
-    #         return raft_pb2.ClientAppendResponse(rc=1, leader=self.leader_id, index=self.last_log_idx)
-    #     self.last_log_term = self.term
-    #     self.last_log_idx += 1
-    #     entry = raft_pb2.Entry(
-    #         term=self.term, index=self.last_log_idx, decree=req.decree)
-    #     self.log[self.last_log_idx] = entry
-    #     # Append Entries Request.
-    #     print('Sending Append entries Request...')
-    #     req = raft_pb2.AppendEntriesRequest(term=self.term, leaderId=self.id, prevLogIndex=self.last_log_idx,
-    #                                         prevLogTerm=self.last_log_term, entry=entry, leaderCommit=self.commit_idx)
-    #     for id in self.stubs.keys():
-    #         stub = self.stubs[id]
-    #         try:
-    #             response = stub.AppendEntries(req)
-    #             print('I am the Leader!!!')
-    #             print('Got append entries response: {}'.format(response))
-    #         except:
-    #             print('cannot connect to ' + str(self.peers_address[id]))
-    #     self.commit_idx += 1
-    #     self.timeout = heartbeat_timeout()
-    #     print('Returning Client append Response as rc = 0')
-    #     return raft_pb2.ClientAppendResponse(rc=0, leader=self.id, index=self.last_log_idx)
-
-    # # Function to handle client request index.
-    # def ClientRequestIndex(self, req, context):
-    #     print('Got client request index: {}'.format(req))
-    #     if (req.index in self.log):
-    #         print('Returning Client request index Response as rc = 0')
-    #         return raft_pb2.ClientRequestIndexResponse(rc=0, leader=self.leader_id, index=req.index,
-    #                                                    decree=self.log[req.index].decree)
-    #     if (self.role != Role.LEADER):
-    #         print(
-    #             'Returning Client request index Response as rc = 1 since I am not a leader')
-    #         return raft_pb2.ClientRequestIndexResponse(rc=1, leader=self.leader_id, index=req.index, decree=None)
-    #     print('Returning Client request index Response as rc = 0')
-    #     return raft_pb2.ClientRequestIndexResponse(rc=0, leader=self.leader_id, index=req.index, decree=None)
 
     def chatFunction(self, request, context):
         # type 1: login, 2: join, 3: chat, 4: like, 5: dislike, 6: history
@@ -468,6 +406,8 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
             elif _type == 7:
                 self.groups[request.groupName].remove_user(request.uuid)
                 return raft_pb2.ChatOutput(status="success", messages=[])
+            elif _type == 8:
+                return raft_pb2.ChatOutput(status="success", messages=[raft_pb2.ChatMessage(content=str(self.leader_id))])
             else:
                 return raft_pb2.ChatOutput(status="failed", messages=[])
         except ValueError:
@@ -520,7 +460,11 @@ def saveToDisk(server_id, raftserver):
 
 def start_server():
     server_address = {}
-    with open('./config_test.json', 'r') as f:
+    if DEBUG:
+        filename = "./config.json"
+    else:
+        filename = "./config_test.json"
+    with open(filename, 'r') as f:
         addr_dict = json.load(f)
         for key, value in addr_dict.items():
             server_address[int(key)] = value

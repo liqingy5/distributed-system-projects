@@ -8,9 +8,6 @@ service RaftServer {
     rpc getMessages(ChatInput) returns (stream ChatMessage) {}
     rpc RequestVote(RequestVoteRequest) returns (RequestVoteResponse);
     rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesResponse);
-    // these next two RPCs are sent from client to the leader
-    rpc ClientAppend(ClientAppendRequest) returns (ClientAppendResponse);
-    rpc ClientRequestIndex(ClientRequestIndexRequest) returns (ClientRequestIndexResponse);
 }
 
 message ChatInput {
@@ -70,28 +67,4 @@ message Entry {
     int32 term = 1;
     int32 index = 2;
     ChatInput request = 3;
-}
-
-message ClientAppendRequest {
-    int32 type = 1;
-    string value = 2;
-}
-
-message ClientAppendResponse {
-    int32 rc = 1; // 0 means success, 1 means not the leader
-    int32 leader = 2;
-    int32 index = 3;
-}
-
-message ClientRequestIndexRequest {
-    int32 index = 1;
-}
-
-message ClientRequestIndexResponse {
-    int32 rc = 1; // 0 means success, 1 means not the leader
-    int32 leader = 2;
-    // this will be the requested index or the last committed
-    // index if the requested index is not found
-    int32 index = 3;
-    string decree =4;
 }

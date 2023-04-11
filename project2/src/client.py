@@ -11,8 +11,12 @@ COMMANDS = {
     "a": 3,  # chat
     "l": 4,  # like
     "r": 5,  # dislike
-    "p": 6   # history
+    "p": 6,   # history
+    "q": 7,   # quit
+    "v": 8    # view
 }
+
+DEBUG = True
 
 
 class raftClient():
@@ -26,7 +30,11 @@ class raftClient():
         self.exit = False
         self.uuid = str(uuid.uuid4())
         print("Reading config file where we store the server addresses")
-        with open("./config_test.json", "r") as f:
+        if DEBUG:
+            filename = "./config.json"
+        else:
+            filename = "./config_test.json"
+        with open(filename, "r") as f:
             address_dict = json.load(f)
             for key, value in address_dict.items():
                 self.peers[int(key)] = value
@@ -35,32 +43,9 @@ class raftClient():
                 self.channels[int(key)] = channel
                 self.stubs[int(key)] = stub
 
-    # def client_append_request(self, string):
-    #     k = string
-    #     for id in self.stubs.keys():
-    #         stub = self.stubs[id]
-    #         print("Contacting", self.peers[id])
-    #         try:
-    #             self.req = stub.ClientAppend(
-    #                 raft_pb2.ClientAppendRequest(decree=k))
-    #             print("got client append response: {}".format(self.req))
-    #         except:
-    #             print("cannot connect to " + str(self.peers[id]))
-
-    # def client_req_index(self, index_num):
-    #     k = index_num
-    #     for id in self.stubs.keys():
-    #         stub = self.stubs[id]
-    #         try:
-    #             self.req = stub.ClientRequestIndex(
-    #                 raft_pb2.ClientRequestIndexRequest(index=int(k)))
-    #             print("got client request index response: {}".format(self.req))
-    #         except:
-    #             print("cannot connect to " + str(self.peers[id]))
-
     # Getting user input and sending messages to server
     def send(self):
-        print("Type 'u <username>' to login, 'j <groupname>' to join a group, 'a <message>' to chat, 'l <message_id>' to like a message, 'r <message_id>' to dislike a message, 'p' to get history, 'q' to quit")
+        print("Type 'u <username>' to login, 'j <groupname>' to join a group, 'a <message>' to chat, 'l <message_id>' to like a message, 'r <message_id>' to dislike a message, 'p' to get history, 'q' to quit 'v' to view the current server Id")
         self.input()
 
     # Getting terminal line input and split to id and message, return the ChatInput
@@ -91,6 +76,16 @@ class raftClient():
                             userName=self.loginName, groupName=self.groupName, type=6, message="", messageId=0, uuid=self.uuid)
                         response = self.sendChatInput(request)
                         self.output(response)
+                    elif (_com == 'v'):
+                        request = raft_pb2.ChatInput(
+                            userName="", groupName="", type=8, message="", messageId=0, uuid=self.uuid)
+                        response = self.sendChatInput(request)
+                        if (response != False):
+                            print(
+                                f"Current view at Server id {int(response.messages[0].content)}")
+                        else:
+                            print(f"Internal error please try later")
+
                     else:
                         raise ValueError
                 else:
@@ -197,7 +192,7 @@ class raftClient():
                             else:
                                 print("{0}. {1}: {2} {3: >10}".format(
                                     r.id, r.user, r.content, r.numberOfLikes > 0 and "likes: "+str(r.numberOfLikes) or ""))
-                except grpc.RpcError as e:
+                except:
                     continue
 
     def sendChatInput(self, request):
@@ -215,6 +210,8 @@ class raftClient():
 
     def output(self, response):
         print("------------------------------------")
+        if (response == False):
+            print("Internal error, please try again")
         for r in response.messages:
             print("{0}. {1}: {2} {3: >10}".format(
                 r.id, r.user, r.content, r.numberOfLikes > 0 and "likes: "+str(r.numberOfLikes) or ""))
