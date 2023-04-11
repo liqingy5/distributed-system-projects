@@ -212,6 +212,7 @@ class raftClient():
         print("------------------------------------")
         if (response == False):
             print("Internal error, please try again")
+            return
         for r in response.messages:
             print("{0}. {1}: {2} {3: >10}".format(
                 r.id, r.user, r.content, r.numberOfLikes > 0 and "likes: "+str(r.numberOfLikes) or ""))
