@@ -48,7 +48,8 @@ class ChatRoom:
 
     # remove an user, just remove the certain uuid's user, if there are two same username in a group, only remove one of them
     def remove_user(self, id):
-        del self.users[id]
+        if id in self.users:
+            del self.users[id]
 
     def add_message(self, message):
         self.messages.append(message)
@@ -363,12 +364,14 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
         try:
             _type = request.type
             if _type == 1:
+                # if the user joined another group, we need to remove it from that group
+                if request.uuid in self.users and self.users[request.uuid] in self.groups:
+                    self.groups[self.users[request.uuid]].remove_user(request.uuid)
                 return raft_pb2.ChatOutput(status="success", messages=[])
             elif _type == 2:
                 # if the user joined another group, we need to remove it from that group
                 if request.uuid in self.users and self.users[request.uuid] in self.groups:
-                    self.groups[self.users[request.uuid]
-                                ].remove_user(request.uuid)
+                    self.groups[self.users[request.uuid]].remove_user(request.uuid)
                 if request.groupName not in self.groups.keys():
                     self.groups[request.groupName] = ChatRoom(
                         request.groupName)
@@ -409,7 +412,9 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
                         id=message.id, user=message.user, content=message.message, numberOfLikes=len(message.likes)))
                 return raft_pb2.ChatOutput(status="success", messages=msg_list)
             elif _type == 7:
-                self.groups[request.groupName].remove_user(request.uuid)
+                # if the user joined another group, we need to remove it from that group
+                if request.uuid in self.users and self.users[request.uuid] in self.groups:
+                    self.groups[self.users[request.uuid]].remove_user(request.uuid)
                 return raft_pb2.ChatOutput(status="success", messages=[])
             elif _type == 8:
                 return raft_pb2.ChatOutput(status="success", messages=[raft_pb2.ChatMessage(content=str(self.leader_id))])
@@ -427,6 +432,7 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
             # if the user has joined another group, remove it
             if request.uuid not in self.groups[request.groupName].users.keys():
                 yield raft_pb2.ChatMessage(id=-999, user="", content="", numberOfLikes=0)
+                self.lastId[request.uuid] = 0
                 break
             lastId = self.lastId[request.uuid]
             chatRoom = self.groups[request.groupName]
