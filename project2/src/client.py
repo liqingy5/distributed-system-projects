@@ -1,6 +1,6 @@
 import grpc
-import raft_pb2
-import raft_pb2_grpc
+import group_chat_pb2
+import group_chat_pb2_grpc
 import threading
 import uuid
 import json
@@ -19,7 +19,7 @@ COMMANDS = {
 DEBUG = True
 
 
-class raftClient():
+class ChatClient():
     def __init__(self):
         self.peers = {}
         self.stubs = {}
@@ -39,7 +39,7 @@ class raftClient():
             for key, value in address_dict.items():
                 self.peers[int(key)] = value
                 channel = grpc.insecure_channel(value)
-                stub = raft_pb2_grpc.RaftServerStub(channel)
+                stub = group_chat_pb2_grpc.ChatServerStub(channel)(channel)
                 self.channels[int(key)] = channel
                 self.stubs[int(key)] = stub
 
@@ -63,7 +63,7 @@ class raftClient():
                         self.exit = True
                         if (self.loginName == None and self.groupName == None):
                             break
-                        request = raft_pb2.ChatInput(
+                        request = group_chat_pb2.ChatInput(
                             type=7, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0, uuid=self.uuid)
                         response = self.sendChatInput(request)
                         break
@@ -72,12 +72,12 @@ class raftClient():
                         if (self.loginName == None or self.groupName == None):
                             print("Please login and join a group first")
                             continue
-                        request = raft_pb2.ChatInput(
+                        request = group_chat_pb2.ChatInput(
                             userName=self.loginName, groupName=self.groupName, type=6, message="", messageId=0, uuid=self.uuid)
                         response = self.sendChatInput(request)
                         self.output(response)
                     elif (_com == 'v'):
-                        request = raft_pb2.ChatInput(
+                        request = group_chat_pb2.ChatInput(
                             userName="", groupName="", type=8, message="", messageId=0, uuid=self.uuid)
                         response = self.sendChatInput(request)
                         if (response != False):
@@ -97,7 +97,7 @@ class raftClient():
                         continue
                     # Send user name to the server
                     if _type == 1:
-                        request = raft_pb2.ChatInput(
+                        request = group_chat_pb2.ChatInput(
                             type=_type, message=_message, userName=_message, groupName="", messageId=0, uuid=self.uuid)
                         response = self.sendChatInput(request)
                         print(response)
@@ -109,7 +109,7 @@ class raftClient():
                     # Send join group message to the server if logged in
                     elif _type == 2 and self.loginName is not None:
                         self.groupName = _message
-                        request = raft_pb2.ChatInput(
+                        request = group_chat_pb2.ChatInput(
                             type=_type, message=_message, userName=self.loginName, groupName=_message, messageId=0, uuid=self.uuid)
                         response = self.sendChatInput(request)
                         # if (response.status == "success"):
@@ -124,14 +124,14 @@ class raftClient():
                     elif self.loginName is not None and self.groupName is not None:
                         # Append new messages
                         if _type == 3:
-                            request = raft_pb2.ChatInput(
+                            request = group_chat_pb2.ChatInput(
                                 type=_type, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0, uuid=self.uuid)
                             response = self.sendChatInput(request)
                         # Add like to the message
                         elif _type == 4:
                             try:
                                 _msgId = int(_message)
-                                request = raft_pb2.ChatInput(
+                                request = group_chat_pb2.ChatInput(
                                     type=_type, message="", userName=self.loginName, groupName=self.groupName, messageId=_msgId, uuid=self.uuid)
                                 response = self.sendChatInput(request)
                                 if (response != False and len(response.messages) > 0):
@@ -142,7 +142,7 @@ class raftClient():
                         elif _type == 5:
                             try:
                                 _msgId = int(_message)
-                                request = raft_pb2.ChatInput(
+                                request = group_chat_pb2.ChatInput(
                                     type=_type, message="", userName=self.loginName, groupName=self.groupName, messageId=_msgId, uuid=self.uuid)
                                 response = self.sendChatInput(request)
                                 if (response != False and len(response.messages) > 0):
@@ -178,7 +178,7 @@ class raftClient():
                 if (self.exit == True or isListening == False):
                     break
                 try:
-                    for r in stub.getMessages(raft_pb2.ChatInput(
+                    for r in stub.getMessages(group_chat_pb2.ChatInput(
                             userName=self.loginName, groupName=self.groupName, type=0, message="", messageId=0, uuid=self.uuid)):
                         # -999 means the client has request to disconnect, stop the thread for listening
                         if r.id == -999:
@@ -221,7 +221,7 @@ class raftClient():
 
 def run():
     print("Client Start!!!")
-    client = raftClient()
+    client = ChatClient()
     input_thread = threading.Thread(target=client.send)
     input_thread.start()
     input_thread.join()

@@ -8,33 +8,14 @@ from time import time, sleep
 import enum
 import grpc
 import sys
-import raft_pb2
-import raft_pb2_grpc
+import group_chat_pb2
+import group_chat_pb2_grpc
 import threading
 import asyncio
 import json
 import argparse
 
-DEBUG = True
-
-
-class Role(enum.Enum):
-    FOLLOWER = 1
-    CANDIDATE = 2
-    LEADER = 3
-
-# Timeout for election.
-
-
-def election_timeout():
-    return time()+uniform(0.9, 1.2)
-# Timeout for heartbeat.
-
-
-def heartbeat_timeout():
-    return time()+0.3
-# Chat room class to store information about a chat room
-
+DEBUG = False
 
 class ChatRoom:
     def __init__(self, name):
@@ -133,28 +114,18 @@ def log_decoder(json_dict):
     return log
 
 
-class RaftServer(raft_pb2_grpc.RaftServerServicer):
+class ChatServer(group_chat_pb2_grpc.ChatServerServicer()):
     # Initialization.
     def __init__(self, server_address, server_id):
         self.users = {}
         self.groups = {}
         self.lastId = {}
-
-        self.role = Role.FOLLOWER
-        print(f"Server {server_id} is a follower")
-        self.last_log_idx = 0
-        self.last_log_term = 0
-        self.commit_idx = 0
         self.id = server_id
-        self.leader_id = None
+        self.vector = [0] * len(server_address)
         self.log = {}
         self.peers_address = {
             _id: server_address[_id] for _id in server_address.keys() if _id != self.id}
-        self.term = 0
-        self.timeout = election_timeout()
-        self.vote_count = 0
-        self.voted_for = -1
-        self.stubs = {_id: raft_pb2_grpc.RaftServerStub(grpc.insecure_channel(
+        self.stubs = {_id: group_chat_pb2_grpc.ChatServerStub(grpc.insecure_channel(
             server_address[_id])) for _id in server_address.keys() if _id != self.id}
 
         self.decodeFromFile()
@@ -164,7 +135,7 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
         if (isfile(f'./logs/log_{server_id}.json')):
             with open(f'./logs/log_{server_id}.json', 'r') as fp:
                 self.log = log_decoder(json.load(fp))
-                print("Decode log success")
+                printLog("Decode log success")
 
         if (isfile(f'./logs/groups_{server_id}.json')):
             with open(f'./logs/groups_{server_id}.json', 'r') as fp:
@@ -177,188 +148,23 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
             with open(f'./logs/lastId_{server_id}.json', 'r') as fp:
                 self.lastId = json.load(fp)
 
-        if (isfile(f'./logs/state_{server_id}.json')):
-            with open(f'./logs/state_{server_id}.json', 'r') as fp:
-                data = json.load(fp)
-                self.term = data['term']
-                self.voted_for = data['voted_for']
-                self.commit_idx = data['commit_idx']
-                self.last_log_idx = data['last_log_idx']
-                self.last_log_term = data['last_log_term']
-
-    # Function to Update my state once in a while.
-    def update(self):
-        if (self.role == Role.FOLLOWER):
-            if (time() > self.timeout):
-                self.role = Role.CANDIDATE
-                # print(f"Server {self.id} is a candidate")
-        elif (self.role == Role.CANDIDATE):
-            if (time() > self.timeout):
-                self.term += 1
-                self.vote_count = 1
-                self.voted_for = self.id
-                # Requesting Vote.
-                # print(f"Server {self.id} is requesting vote")
-                req = raft_pb2.RequestVoteRequest(term=self.term, candidateId=self.id, lastLogIndex=self.last_log_idx,
-                                                  lastLogTerm=self.last_log_term)
-                for id in self.stubs.keys():
-                    stub = self.stubs[id]
-                    try:
-                        # Store Response.
-                        response = stub.RequestVote(req)
-                        # print('Got request vote response: {}'.format(response))
-                        if (response.voteGranted):
-                            self.vote_count += 1
-                    except grpc.RpcError as e:
-                        print('Update Candidate:cannot connect to ' +
-                              str(self.peers_address[id]))
-                self.timeout = election_timeout()
-            elif (self.vote_count >= (len(self.peers_address) + 1) // 2 + 1):
-                self.role = Role.LEADER
-                self.vote_count = 1
-                self.voted_for = -1
-                self.leader_id = self.id
-                self.timeout = time()
-                # print('Now I am the Leader!!!')
-        elif (self.role == Role.LEADER):
-            if (time() > self.timeout):
-                prevLogIndex = self.last_log_idx
-                if (prevLogIndex in self.log):
-                    entry = self.log[prevLogIndex]
-                else:
-                    entry = None
-                # Append Entries Request.
-                req = raft_pb2.AppendEntriesRequest(term=self.term, leaderId=self.id, prevLogIndex=prevLogIndex,
-                                                    prevLogTerm=self.last_log_term, entry=entry,
-                                                    leaderCommit=self.commit_idx)
-                # print('Sending Append entries request...')
-                for id in self.stubs.keys():
-                    stub = self.stubs[id]
-                    try:
-                        response = stub.AppendEntries(req)
-                        print('I am the Leader!!!')
-                        print('Got append entries response: {}'.format(response))
-                        while (response.success == False):
-                            if (prevLogIndex > 1):
-                                prevLogIndex -= 1
-                            entry = self.log[prevLogIndex]
-                            # Append Entries Request.
-                            # print(
-                            #     f'Sending Append entries request to server {id} with {entry}')
-                            req = raft_pb2.AppendEntriesRequest(term=self.term, leaderId=self.id,
-                                                                prevLogIndex=prevLogIndex, prevLogTerm=entry.term,
-                                                                entry=entry, leaderCommit=self.commit_idx)
-                            response = stub.AppendEntries(req)
-                            # print('I am the Leader!!!')
-                            # print('Got append entries response: {}'.format(response))
-                        while (prevLogIndex < self.last_log_idx):
-                            prevLogIndex += 1
-                            entry = self.log[prevLogIndex]
-                            # print('Sending Append entries request...')
-                            # Append Entries Request.
-                            req = raft_pb2.AppendEntriesRequest(term=self.term, leaderId=self.id,
-                                                                prevLogIndex=prevLogIndex, prevLogTerm=entry.term,
-                                                                entry=entry, leaderCommit=self.commit_idx)
-                            response = stub.AppendEntries(req)
-                            # print('I am the Leader!!!')
-                            # print('Got append entries response: {}'.format(response))
-                    except grpc.RpcError as e:
-                        print('Update Leader: cannot connect to ' +
-                              str(self.peers_address[id]))
-                        print(e)
-                self.timeout = heartbeat_timeout()
-
-    # Function to Request Vote.
-    def RequestVote(self, req, context):
-        # print('Got request vote: {}'.format(req))
-        if (req.term > self.term):
-            self.term = req.term
-            self.voted_for = -1
-        if (req.term < self.term) or (req.term == self.term and self.voted_for != -1 and self.voted_for != req.candidateId and self.last_log_idx > req.prevLogIndex):
-            # print('Returning Vote Response as false since requested term is less')
-            return raft_pb2.RequestVoteResponse(term=self.term, voteGranted=False)
-        if ((self.voted_for == -1 or self.voted_for == req.candidateId) and (req.lastLogTerm > self.last_log_term or (
-                req.lastLogTerm == self.last_log_term and req.lastLogIndex >= self.last_log_idx))):
-            self.role = Role.FOLLOWER
-            # print('I am a Follower!!!')
-            self.voted_for = req.candidateId
-            self.timeout = election_timeout()
-            # print('Returning Vote Response : granted vote')
-            return raft_pb2.RequestVoteResponse(term=self.term, voteGranted=True)
-        # print('Returning Vote Response as False')
-        return raft_pb2.RequestVoteResponse(term=self.term, voteGranted=False)
-
-    # Function to handle Append Entries.
-    def AppendEntries(self, req, context):
-        # print('Got append entries: {}'.format(req))
-        if (req.term < self.term or (
-                req.prevLogIndex in self.log and self.log[req.prevLogIndex].term != req.prevLogTerm)):
-            # print(
-            # 'Returning Append entries Response as false since requested term is less')
-            return raft_pb2.AppendEntriesResponse(term=self.term, success=False)
-        self.role = Role.FOLLOWER
-        print('I am a follower!!!')
-        self.term = req.term
-        self.leader_id = req.leaderId
-        self.timeout = election_timeout()
-        if (req.prevLogIndex == self.last_log_idx and req.prevLogTerm == self.last_log_term):
-            # print('Returning Append entries Response as True')
-            return raft_pb2.AppendEntriesResponse(term=self.term, success=True)
-        elif (req.prevLogIndex == self.last_log_idx+1 and req.prevLogTerm >= self.last_log_term):
-            # print(
-            #     f"Receive entry from leader: {req.leaderId} ,index: {req.prevLogIndex} prevLogTerm:{req.prevLogTerm} with Entry:{req.entry} ")
-            self.log[req.entry.index] = req.entry
-            self.last_log_idx += 1
-            self.last_log_term = req.prevLogTerm
-            self.processClientRequest(req.entry.request)
-            self.commit_idx += 1
-            # print('Returning Append entries Response as True')
-            return raft_pb2.AppendEntriesResponse(term=self.term, success=True)
-        # print('Returning Append entries Response as false')
-        elif (req.prevLogIndex < self.last_log_idx):
-            self.log = self.log[:req.prevLogIndex]
-            self.log[req.entry.index] = req.entry
-            self.last_log_idx = req.prevLogIndex
-            self.last_log_term = req.prevLogTerm
-            return raft_pb2.AppendEntriesResponse(term=self.term, success=True)
-        print(f"request: {req}")
-        print(f"self.last_log_idx: {self.last_log_idx}")
-        print(f"self.last_log_term: {self.last_log_term}")
-        return raft_pb2.AppendEntriesResponse(term=self.term, success=False)
-
     def chatFunction(self, request, context):
         # type 1: login, 2: join, 3: chat, 4: like, 5: dislike, 6: history
-        if (self.role != Role.LEADER):
-            # print(
-            #     'Returning Client chat response with status as failed since I am not a leader')
-            return raft_pb2.ChatOutput(status="failed", messages=[])
-        # print('Request from Client: {}'.format(request))
         self.last_log_term = self.term
         self.last_log_idx += 1
-        entry = raft_pb2.Entry(
-            term=self.term, index=self.last_log_idx, request=request)
-        self.log[self.last_log_idx] = entry
-        # print(
-        #     f"Entry: {entry.term}, {entry.index}, {entry.request.type}, {entry.request.message}")
-        # print('Sending Append entries Request...')
-        req = raft_pb2.AppendEntriesRequest(term=self.term, leaderId=self.id, prevLogIndex=self.last_log_idx,
-                                            prevLogTerm=self.last_log_term, entry=entry, leaderCommit=self.commit_idx)
+        sync_thread = threading.Thread(target=syncServer, args=(request))
+        sync_thread.start()
+        response = self.processClientRequest(request)
+        return response
+
+    def syncServer(req):
         for id in self.stubs.keys():
             stub = self.stubs[id]
             try:
                 response = stub.AppendEntries(req)
-                # print('I am the Leader!!!')
-                # print('Got append entries response: {}'.format(response))
             except grpc.RpcError as e:
-                print('Chatfunction:cannot connect to ' +
+                printLog('Chatfunction:cannot connect to ' +
                       str(self.peers_address[id]))
-
-        response = self.processClientRequest(request)
-        self.commit_idx += 1
-        self.timeout = heartbeat_timeout()
-        # print('Returning Client chat response with status as success')
-        # print(response)
-        return response
 
     def processClientRequest(self, request):
         try:
@@ -421,7 +227,7 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
             else:
                 return raft_pb2.ChatOutput(status="failed", messages=[])
         except ValueError:
-            print("Error type")
+            printLog("Error type")
 
     def getMessages(self, request, context):
         if request.uuid not in self.lastId.keys():
@@ -452,22 +258,16 @@ class RaftServer(raft_pb2_grpc.RaftServerServicer):
                     yield raft_pb2.ChatMessage(id=message.id, user=message.user, content=message.message, numberOfLikes=len(message.likes))
 
 
-def saveToDisk(server_id, raftserver):
-    print("Writing...")
+def saveToDisk(server_id, chatServer):
+    printLog("Writing...")
     with open(f'./logs/log_{server_id}.json', 'w') as f:
-        json.dump(log_encoder(raftserver.log), f, indent=4)
-    with open(f'./logs/state_{server_id}.json', 'w') as f:
-        persistant_state = {"term": raftserver.term,
-                            "voted_for": raftserver.voted_for, "commit_idx": raftserver.commit_idx, "last_log_idx": raftserver.last_log_idx, "last_log_term": raftserver.last_log_term}
-        json.dump(persistant_state, f)
+        json.dump(log_encoder(chatServer.log), f, indent=4)
     with open(f'./logs/groups_{server_id}.json', 'w') as f:
-        json.dump(raftserver.groups, f, indent=4, cls=ChatRoomEncoder)
-
+        json.dump(chatServer.groups, f, indent=4, cls=ChatRoomEncoder)
     with open(f'./logs/users_{server_id}.json', 'w') as f:
-        json.dump(raftserver.users, f)
-
+        json.dump(chatServer.users, f)
     with open(f'./logs/lastId_{server_id}.json', 'w') as f:
-        json.dump(raftserver.lastId, f)
+        json.dump(chatServer.lastId, f)
 
 
 def start_server():
@@ -480,30 +280,30 @@ def start_server():
         addr_dict = json.load(f)
         for key, value in addr_dict.items():
             server_address[int(key)] = value
-    print(server_address)
+    printLog(server_address)
     parser = argparse.ArgumentParser()
     parser.add_argument("-id", help="Server id")
+    parser.add_argument("-D", help="Debug")
     args = parser.parse_args()
     if args.id is None:
         print(
             "Please specify server id with command : python server.py -id [id]")
         sys.exit(1)
+    if args.D is None:
+        DEBUG = True
     server_id = int(args.id)
-    raftserver = RaftServer(server_address, server_id)
+    chatServer = ChatServer(server_address, server_id)
     server = grpc.server(futures.ThreadPoolExecutor())
-    raft_pb2_grpc.add_RaftServerServicer_to_server(raftserver, server)
+    group_chat_pb2_grpc.add_ChatServerServicer_to_server(chatServer, server)
     host, port = server_address[server_id].split(":")
     print(f"Server started on port {port}! ")
     server.add_insecure_port(f"[::]:{port}")
     server.start()
-    register(saveToDisk, server_id, raftserver)
+    register(saveToDisk, server_id, chatServer)
 
-    while True:
-        try:
-            raftserver.update()
-        except KeyboardInterrupt:
-            server.stop(0)
-
+def printLog(msg):
+    if DEBUG:
+        print(msg)
 
 if __name__ == '__main__':
     server_thread = threading.Thread(target=start_server)
