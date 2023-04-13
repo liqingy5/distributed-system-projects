@@ -109,7 +109,7 @@ def log_encoder(log):
 def log_decoder(json_dict):
     log = {}
     for key in json_dict.keys():
-        grpc_msg = Parse(json_dict[key], raft_pb2.Entry())
+        grpc_msg = Parse(json_dict[key], group_chat_pb2.Entry())
         log[int(key)] = grpc_msg
     return log
 
@@ -173,7 +173,7 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer()):
                 # if the user joined another group, we need to remove it from that group
                 if request.uuid in self.users and self.users[request.uuid] in self.groups:
                     self.groups[self.users[request.uuid]].remove_user(request.uuid)
-                return raft_pb2.ChatOutput(status="success", messages=[])
+                return group_chat_pb2.ChatOutput(status="success", messages=[])
             elif _type == 2:
                 # if the user joined another group, we need to remove it from that group
                 if request.uuid in self.users and self.users[request.uuid] in self.groups:
@@ -184,48 +184,48 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer()):
                 self.groups[request.groupName].add_user(
                     request.userName, request.uuid)
                 self.users[request.uuid] = request.groupName
-                return raft_pb2.ChatOutput(status="success", messages=[], user=list(set(self.groups[request.groupName].users.values())))
+                return group_chat_pb2.ChatOutput(status="success", messages=[], user=list(set(self.groups[request.groupName].users.values())))
             elif _type == 3:
                 chatRoom = self.groups[request.groupName]
                 chatRoom.add_message(ChatMessage(
                     len(chatRoom.messages) + 1, request.userName, request.message))
-                return raft_pb2.ChatOutput(status="success", messages=[])
+                return group_chat_pb2.ChatOutput(status="success", messages=[])
             elif _type == 4:
                 chatRoom = self.groups[request.groupName]
                 if not chatRoom.add_like(request.userName, request.messageId):
-                    return raft_pb2.ChatOutput(status="success", messages=[])
+                    return group_chat_pb2.ChatOutput(status="success", messages=[])
                 # only when the message user liked is within lastest 10 message, we need to refresh the message list
                 if request.messageId > len(chatRoom.messages) - 10:
                     for element in self.lastId:
                         if self.lastId[element] > 0:
                             self.lastId[element] = self.lastId[element] - 1
-                return raft_pb2.ChatOutput(status="success", messages=[])
+                return group_chat_pb2.ChatOutput(status="success", messages=[])
             elif _type == 5:
                 chatRoom = self.groups[request.groupName]
                 if not chatRoom.remove_like(request.userName, request.messageId):
-                    return raft_pb2.ChatOutput(status="success", messages=[])
+                    return group_chat_pb2.ChatOutput(status="success", messages=[])
                 if request.messageId > len(chatRoom.messages) - 10:
                     for element in self.lastId:
                         if self.lastId[element] > 0:
                             self.lastId[element] = self.lastId[element] - 1
-                return raft_pb2.ChatOutput(status="success", messages=[])
+                return group_chat_pb2.ChatOutput(status="success", messages=[])
             elif _type == 6:
                 chatRoom = self.groups[request.groupName]
                 message = chatRoom.messages
                 msg_list = []
                 for message in chatRoom.messages:
-                    msg_list.append(raft_pb2.ChatMessage(
+                    msg_list.append(group_chat_pb2.ChatMessage(
                         id=message.id, user=message.user, content=message.message, numberOfLikes=len(message.likes)))
-                return raft_pb2.ChatOutput(status="success", messages=msg_list)
+                return group_chat_pb2.ChatOutput(status="success", messages=msg_list)
             elif _type == 7:
                 # if the user joined another group, we need to remove it from that group
                 if request.uuid in self.users and self.users[request.uuid] in self.groups:
                     self.groups[self.users[request.uuid]].remove_user(request.uuid)
-                return raft_pb2.ChatOutput(status="success", messages=[])
+                return group_chat_pb2.ChatOutput(status="success", messages=[])
             elif _type == 8:
-                return raft_pb2.ChatOutput(status="success", messages=[raft_pb2.ChatMessage(content=str(self.leader_id))])
+                return group_chat_pb2.ChatOutput(status="success", messages=[group_chat_pb2.ChatMessage(content=str(self.leader_id))])
             else:
-                return raft_pb2.ChatOutput(status="failed", messages=[])
+                return group_chat_pb2.ChatOutput(status="failed", messages=[])
         except ValueError:
             printLog("Error type")
 
@@ -237,7 +237,7 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer()):
         while (True):
             # if the user has joined another group, remove it
             if request.uuid not in self.groups[request.groupName].users.keys():
-                yield raft_pb2.ChatMessage(id=-999, user="", content="", numberOfLikes=0)
+                yield group_chat_pb2.ChatMessage(id=-999, user="", content="", numberOfLikes=0)
                 self.lastId[request.uuid] = 0
                 break
             lastId = self.lastId[request.uuid]
@@ -251,11 +251,11 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer()):
                 set(self.groups[request.groupName].users.values()))
             if (lastParticipants != len(participants)):
                 lastParticipants = len(participants)
-                yield raft_pb2.ChatMessage(id=-998, user=", ".join(participants), content=request.groupName, numberOfLikes=0)
+                yield group_chat_pb2.ChatMessage(id=-998, user=", ".join(participants), content=request.groupName, numberOfLikes=0)
             if len(chatRoom.messages) > lastId:
                 self.lastId[request.uuid] = len(chatRoom.messages)
                 for message in chatRoom.messages[-10:]:
-                    yield raft_pb2.ChatMessage(id=message.id, user=message.user, content=message.message, numberOfLikes=len(message.likes))
+                    yield group_chat_pb2.ChatMessage(id=message.id, user=message.user, content=message.message, numberOfLikes=len(message.likes))
 
 
 def saveToDisk(server_id, chatServer):
