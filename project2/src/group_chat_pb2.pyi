@@ -43,19 +43,35 @@ class ChatOutput(_message.Message):
     user: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, status: _Optional[str] = ..., messages: _Optional[_Iterable[_Union[ChatMessage, _Mapping]]] = ..., user: _Optional[_Iterable[str]] = ...) -> None: ...
 
-class ChatServerSyncRequest(_message.Message):
-    __slots__ = ["request", "vector"]
+class ChatServerRequest(_message.Message):
+    __slots__ = ["request", "server_id", "vector"]
     REQUEST_FIELD_NUMBER: _ClassVar[int]
+    SERVER_ID_FIELD_NUMBER: _ClassVar[int]
     VECTOR_FIELD_NUMBER: _ClassVar[int]
     request: ChatInput
+    server_id: int
     vector: _containers.RepeatedScalarFieldContainer[int]
-    def __init__(self, vector: _Optional[_Iterable[int]] = ..., request: _Optional[_Union[ChatInput, _Mapping]] = ...) -> None: ...
+    def __init__(self, vector: _Optional[_Iterable[int]] = ..., request: _Optional[_Union[ChatInput, _Mapping]] = ..., server_id: _Optional[int] = ...) -> None: ...
+
+class ChatServerResponse(_message.Message):
+    __slots__ = ["status"]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    def __init__(self, status: _Optional[str] = ...) -> None: ...
+
+class ChatServerSyncRequest(_message.Message):
+    __slots__ = ["server_id", "vector"]
+    SERVER_ID_FIELD_NUMBER: _ClassVar[int]
+    VECTOR_FIELD_NUMBER: _ClassVar[int]
+    server_id: int
+    vector: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, vector: _Optional[_Iterable[int]] = ..., server_id: _Optional[int] = ...) -> None: ...
 
 class ChatServerSyncResponse(_message.Message):
     __slots__ = ["status"]
     STATUS_FIELD_NUMBER: _ClassVar[int]
-    status: int
-    def __init__(self, status: _Optional[int] = ...) -> None: ...
+    status: str
+    def __init__(self, status: _Optional[str] = ...) -> None: ...
 
 class Empty(_message.Message):
     __slots__ = []

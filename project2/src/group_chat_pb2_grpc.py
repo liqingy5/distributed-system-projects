@@ -29,6 +29,16 @@ class ChatServerStub(object):
                 request_serializer=group__chat__pb2.ChatServerSyncRequest.SerializeToString,
                 response_deserializer=group__chat__pb2.ChatServerSyncResponse.FromString,
                 )
+        self.sendMessage = channel.unary_unary(
+                '/groupChat.ChatServer/sendMessage',
+                request_serializer=group__chat__pb2.ChatServerRequest.SerializeToString,
+                response_deserializer=group__chat__pb2.ChatServerResponse.FromString,
+                )
+        self.probe = channel.unary_unary(
+                '/groupChat.ChatServer/probe',
+                request_serializer=group__chat__pb2.Empty.SerializeToString,
+                response_deserializer=group__chat__pb2.Empty.FromString,
+                )
 
 
 class ChatServerServicer(object):
@@ -52,6 +62,18 @@ class ChatServerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def sendMessage(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def probe(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ChatServerServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -69,6 +91,16 @@ def add_ChatServerServicer_to_server(servicer, server):
                     servicer.syncMessage,
                     request_deserializer=group__chat__pb2.ChatServerSyncRequest.FromString,
                     response_serializer=group__chat__pb2.ChatServerSyncResponse.SerializeToString,
+            ),
+            'sendMessage': grpc.unary_unary_rpc_method_handler(
+                    servicer.sendMessage,
+                    request_deserializer=group__chat__pb2.ChatServerRequest.FromString,
+                    response_serializer=group__chat__pb2.ChatServerResponse.SerializeToString,
+            ),
+            'probe': grpc.unary_unary_rpc_method_handler(
+                    servicer.probe,
+                    request_deserializer=group__chat__pb2.Empty.FromString,
+                    response_serializer=group__chat__pb2.Empty.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -128,5 +160,39 @@ class ChatServer(object):
         return grpc.experimental.unary_unary(request, target, '/groupChat.ChatServer/syncMessage',
             group__chat__pb2.ChatServerSyncRequest.SerializeToString,
             group__chat__pb2.ChatServerSyncResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def sendMessage(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/groupChat.ChatServer/sendMessage',
+            group__chat__pb2.ChatServerRequest.SerializeToString,
+            group__chat__pb2.ChatServerResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def probe(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/groupChat.ChatServer/probe',
+            group__chat__pb2.Empty.SerializeToString,
+            group__chat__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

@@ -7,6 +7,8 @@ service ChatServer {
     rpc chatFunction(ChatInput) returns (ChatOutput) {}
     rpc getMessages(ChatInput) returns (stream ChatMessage) {}
     rpc syncMessage(ChatServerSyncRequest) returns (ChatServerSyncResponse);
+    rpc sendMessage(ChatServerRequest) returns (ChatServerResponse);
+    rpc probe(Empty) returns (Empty);
 }
 
 message ChatInput {
@@ -36,11 +38,21 @@ message Empty{
 
 }
 
-message ChatServerSyncRequest {
+message ChatServerRequest {
     repeated int32 vector = 1;
     ChatInput request = 2;
+    int32 server_id = 3;
+}
+
+message ChatServerResponse {
+    string status = 1;
+}
+
+message ChatServerSyncRequest {
+    repeated int32 vector = 1;
+    int32 server_id = 2;
 }
 
 message ChatServerSyncResponse {
-    int32 status = 1;
+    string status = 1;
 }

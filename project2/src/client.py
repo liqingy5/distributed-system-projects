@@ -4,6 +4,8 @@ import group_chat_pb2_grpc
 import threading
 import uuid
 import json
+import sys
+import argparse
 
 COMMANDS = {
     "u": 1,  # login
@@ -16,34 +18,21 @@ COMMANDS = {
     "v": 8    # view
 }
 
-DEBUG = True
+DEBUG = False
 
 
 class ChatClient():
     def __init__(self):
-        self.peers = {}
-        self.stubs = {}
-        self.channels = {}
+        self.channel = None
+        self.stub = None
         self.loginName = None
         self.groupName = None
         self.listen_thread = None
         self.exit = False
         self.uuid = str(uuid.uuid4())
-        print("Reading config file where we store the server addresses")
-        if DEBUG:
-            filename = "./config.json"
-        else:
-            filename = "./config_test.json"
-        with open(filename, "r") as f:
-            address_dict = json.load(f)
-            for key, value in address_dict.items():
-                self.peers[int(key)] = value
-                channel = grpc.insecure_channel(value)
-                stub = group_chat_pb2_grpc.ChatServerStub(channel)(channel)
-                self.channels[int(key)] = channel
-                self.stubs[int(key)] = stub
 
     # Getting user input and sending messages to server
+
     def send(self):
         print("Type 'u <username>' to login, 'j <groupname>' to join a group, 'a <message>' to chat, 'l <message_id>' to like a message, 'r <message_id>' to dislike a message, 'p' to get history, 'q' to quit 'v' to view the current server Id")
         self.input()
@@ -65,7 +54,7 @@ class ChatClient():
                             break
                         request = group_chat_pb2.ChatInput(
                             type=7, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0, uuid=self.uuid)
-                        response = self.sendChatInput(request)
+                        response = self.stub.chatFunction(request)
                         break
                     # Print history messagges if detect p command
                     elif (_com == 'p'):
@@ -74,15 +63,18 @@ class ChatClient():
                             continue
                         request = group_chat_pb2.ChatInput(
                             userName=self.loginName, groupName=self.groupName, type=6, message="", messageId=0, uuid=self.uuid)
-                        response = self.sendChatInput(request)
+                        response = self.stub.chatFunction(request)
                         self.output(response)
                     elif (_com == 'v'):
                         request = group_chat_pb2.ChatInput(
                             userName="", groupName="", type=8, message="", messageId=0, uuid=self.uuid)
-                        response = self.sendChatInput(request)
+                        response = self.stub.chatFunction(request)
+                        views = []
+                        for r in response.messages:
+                            views.append(r.content)
                         if (response != False):
                             print(
-                                f"Current view at Server id {int(response.messages[0].content)}")
+                                f"servers that can current communicate with each other: {views}")
                         else:
                             print(f"Internal error please try later")
 
@@ -99,8 +91,7 @@ class ChatClient():
                     if _type == 1:
                         request = group_chat_pb2.ChatInput(
                             type=_type, message=_message, userName=_message, groupName="", messageId=0, uuid=self.uuid)
-                        response = self.sendChatInput(request)
-                        print(response)
+                        response = self.stub.chatFunction(request)
                         if response != False:
                             self.loginName = _message
                             print("Login as: " + self.loginName)
@@ -111,7 +102,7 @@ class ChatClient():
                         self.groupName = _message
                         request = group_chat_pb2.ChatInput(
                             type=_type, message=_message, userName=self.loginName, groupName=_message, messageId=0, uuid=self.uuid)
-                        response = self.sendChatInput(request)
+                        response = self.stub.chatFunction(request)
                         # if (response.status == "success"):
                         if (response != False):
                             print("Group: " + self.groupName)
@@ -126,14 +117,14 @@ class ChatClient():
                         if _type == 3:
                             request = group_chat_pb2.ChatInput(
                                 type=_type, message=_message, userName=self.loginName, groupName=self.groupName, messageId=0, uuid=self.uuid)
-                            response = self.sendChatInput(request)
+                            response = self.stub.chatFunction(request)
                         # Add like to the message
                         elif _type == 4:
                             try:
                                 _msgId = int(_message)
                                 request = group_chat_pb2.ChatInput(
                                     type=_type, message="", userName=self.loginName, groupName=self.groupName, messageId=_msgId, uuid=self.uuid)
-                                response = self.sendChatInput(request)
+                                response = self.stub.chatFunction(request)
                                 if (response != False and len(response.messages) > 0):
                                     self.output(response)
                             except ValueError:
@@ -144,7 +135,7 @@ class ChatClient():
                                 _msgId = int(_message)
                                 request = group_chat_pb2.ChatInput(
                                     type=_type, message="", userName=self.loginName, groupName=self.groupName, messageId=_msgId, uuid=self.uuid)
-                                response = self.sendChatInput(request)
+                                response = self.stub.chatFunction(request)
                                 if (response != False and len(response.messages) > 0):
                                     self.output(response)
                             except ValueError:
@@ -157,54 +148,68 @@ class ChatClient():
                         elif (self.groupName == None):
                             print("Please join a group first")
 
-            except ValueError:
+            except ValueError as e:
                 print(
                     "Invalid input format. Please enter a command followed by a message.")
                 continue
+            except grpc.RpcError as e:
+                print("Connect to server failed, please try again or different servers")
+                break
 
-        print("Exiting...")
-        # Kill the listen thread
-        if (self.listen_thread != None):
-            self.listen_thread.join()
-        # Close the channel connection
-        for id in self.channels.keys():
-            self.channels[id].close()
+        if (self.exit == True):
+            print("Exiting...")
+            # Kill the listen thread
+            self.reset()
+            sys.exit(0)
+        self.run()
 
     # listening to server messages
-    def listen(self):
-        isListening = True
-        while isListening:
-            for stub in self.stubs.values():
-                if (self.exit == True or isListening == False):
-                    break
-                try:
-                    for r in stub.getMessages(group_chat_pb2.ChatInput(
-                            userName=self.loginName, groupName=self.groupName, type=0, message="", messageId=0, uuid=self.uuid)):
-                        # -999 means the client has request to disconnect, stop the thread for listening
-                        if r.id == -999:
-                            isListening = False
-                            break
-                        # -998 means there is a changed in participant members, print current participants
-                        if (self.exit == False):
-                            if r.id == -998:
-                                if (r.content == self.groupName):
-                                    print("Participants: "+r.user)
-                            else:
-                                print("{0}. {1}: {2} {3: >10}".format(
-                                    r.id, r.user, r.content, r.numberOfLikes > 0 and "likes: "+str(r.numberOfLikes) or ""))
-                except:
-                    continue
 
-    def sendChatInput(self, request):
-        for id in self.stubs.keys():
+    def listen(self):
+        try:
+            for r in self.stub.getMessages(group_chat_pb2.ChatInput(
+                    userName=self.loginName, groupName=self.groupName, type=0, message="", messageId=0, uuid=self.uuid)):
+                # -999 means the client has request to disconnect, stop the thread for listening
+                if r.id == -999:
+                    break
+                # -998 means there is a changed in participant members, print current participants
+                if (self.exit == False):
+                    if r.id == -998:
+                        if (r.content == self.groupName):
+                            print("Participants: "+r.user)
+                    else:
+                        print("{0}. {1}: {2} {3: >10}".format(
+                            r.id, r.user, r.content, r.numberOfLikes > 0 and "likes: "+str(r.numberOfLikes) or ""))
+        except grpc.RpcError as e:
+            printLog("Server disconnected")
+            self.loginName = None
+            self.groupName = None
+
+    def run(self):
+        print("Please type 'c <hostname> <portnumber> to connect to Server")
+        # waiting user input for address and port number
+        while True:
             try:
-                stub = self.stubs[id]
-                response = stub.chatFunction(request)
-                if response.status == "success":
-                    return response
-            except grpc.RpcError as e:
+                inputs = input().split()
+                if (len(inputs) != 3):
+                    if (len(inputs) == 1 and inputs[0] == 'q'):
+                        self.exit = True
+                        sys.exit(0)
+                    else:
+                        raise ValueError
+                _com, _address, _port = inputs
+                if (_com == 'c'):
+                    self.channel = grpc.insecure_channel(_address+":"+_port)
+                    self.stub = group_chat_pb2_grpc.ChatServerStub(
+                        self.channel)
+                    self.send()
+                    break
+                else:
+                    raise ValueError
+            except ValueError:
+                print(
+                    "Invalid input format. Please type 'c <hostname> <portnumber> to connect to Server")
                 continue
-        return False
 
     # output messages from server
 
@@ -218,14 +223,27 @@ class ChatClient():
                 r.id, r.user, r.content, r.numberOfLikes > 0 and "likes: "+str(r.numberOfLikes) or ""))
         print("------------------------------------")
 
+    def reset(self):
+        if (self.channel != None):
+            self.channel.close()
+        if (self.listen_thread != None):
+            self.listen_thread.join()
+        self.groupName = None
+        self.loginName = None
 
-def run():
-    print("Client Start!!!")
-    client = ChatClient()
-    input_thread = threading.Thread(target=client.send)
-    input_thread.start()
-    input_thread.join()
+
+def printLog(msg):
+    global DEBUG
+    if DEBUG:
+        print(msg)
 
 
 if __name__ == '__main__':
-    run()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-D", help="Debug", action="store_true")
+    args = parser.parse_args()
+    if args.D:
+        DEBUG = True
+    client = ChatClient()
+    print("Client started")
+    client.run()
