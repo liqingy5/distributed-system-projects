@@ -168,13 +168,12 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
             if response.status == "success":
                 with self.lock:
                     self.vector[self.id-1] += 1
-                    temp_v = self.vector.copy()
-                    self.log.append([temp_v, request])
+                    self.log.append([self.vector[:], request])
                     self.saveToDisk()
-                reqForSync = group_chat_pb2.ChatServerSyncRequest(
-                    vector=self.vector, server_id=self.id)
                 for stub in self.stubs.values():
                     try:
+                        reqForSync = group_chat_pb2.ChatServerSyncRequest(
+                            vector=self.vector, server_id=self.id)
                         response_from_server = stub.syncMessage(
                             reqForSync, timeout=1)
                     except Exception as e:
@@ -194,6 +193,27 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
             printLog(e)
         return response
 
+    def syncMessage(self, request, context):
+        r_vt = request.vector
+        sender_id = request.server_id
+        value = isConcurrent(r_vt, self.vector)
+        if value != 'greater':
+            with self.lock:
+                for i in reversed(self.log):
+                    vector = i[0]
+                    req = i[1]
+                    if (req == None):
+                        continue
+                    temp = isConcurrent(vector, r_vt)
+                    if temp == 'smaller':
+                        break
+                    try:
+                        self.stubs[sender_id].sendMessage(group_chat_pb2.ChatServerRequest(
+                            vector=vector, request=req, server_id=self.id), timeout=TIME_OUT)
+                    except Exception as e:
+                        printLog(e)
+        return group_chat_pb2.ChatServerResponse(status="success")
+
     def sendMessage(self, request, context):
         r_vt = request.vector
         req = request.request
@@ -203,29 +223,24 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
                 # if the request.vector[sender_id-1] is greater than self.vector[sender_id-1] + 1,
                 # and other timestamp is at least as large as self.vector, then update
                 # else put the request into the queue
-                if r_vt[sender_id-1] == self.vector[sender_id-1] + 1 and all(r_vt[k] >= self.vector[k] for k in range(len(self.vector)) if k != sender_id-1):
-                    # self.vector = Max(r_vt, self.vector)
-                    self.vector[sender_id-1] += 1
-                    temp_v = self.vector.copy()
-                    self.log.append([temp_v, req])
+                if r_vt[sender_id - 1] == self.vector[sender_id-1] + 1 and all(r_vt[k] >= self.vector[k] for k in range(len(self.vector)) if k != sender_id-1):
+                    self.vector[sender_id - 1] += 1
+                    self.log.append([self.vector[:], req])
                     self.processClientRequest(req)
                     self.saveToDisk()
                 else:
                     value = isConcurrent(r_vt, self.vector)
                     if value == "bigger" or value == "concurrent":
-                        self.queue[sender_id-1].push(r_vt[sender_id-1], req)
-                    print(
-                        f"Sender id and timestamp at server {self.id}: {sender_id} and {self.vector[sender_id-1]}")
-                    self.queue[sender_id-1].printQueue()
+                        self.queue[sender_id-1].push(r_vt, req)
                 while not self.queue[sender_id-1].isEmpty():
-                    if self.queue[sender_id-1].front()[0] == self.vector[sender_id-1] + 1:
-                        req = self.queue[sender_id-1].pop()[2]
-                        self.vector[sender_id-1] += 1
-                        temp_v = self.vector.copy()
-                        self.log.append([temp_v, req])
+                    pos = self.getPosition(self.queue[sender_id-1].front()[0])
+                    if pos != -1:
+                        req = self.queue[sender_id - 1].pop()[1]
+                        self.vector[pos] += 1
+                        self.log.append([self.vector[:], req])
                         self.processClientRequest(req)
                         self.saveToDisk()
-                    elif self.queue[sender_id-1].front()[0] <= self.vector[sender_id-1]:
+                    elif self.compareVector(self.queue[sender_id-1].front()[0]) <= 0:
                         self.queue[sender_id-1].pop()
                     else:
                         break
@@ -235,32 +250,32 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
             printLog(e)
         return group_chat_pb2.ChatServerResponse(status="success")
 
-    def syncMessage(self, request, context):
-        r_vt = request.vector
-        sender_id = request.server_id
-        value = isConcurrent(r_vt, self.vector)
-        print("syncMessage")
-        print(value)
-        print(request)
-        if value != 'greater':
-            try:
-                with self.lock:
-                    for i in reversed(self.log):
-                        vector = i[0]
-                        req = i[1]
-                        temp = isConcurrent(vector, r_vt)
-                        print(vector)
-                        print(req)
-                        print(temp)
-                        if temp == 'smaller':
-                            break
-                        self.stubs[sender_id].sendMessage(group_chat_pb2.ChatServerRequest(
-                            vector=vector, request=req, server_id=self.id), timeout=TIME_OUT)
+    def compareVector(self, v):
+        result = 0
+        index = -1
+        for item in v:
+            index += 1
+            if index == self.id - 1:
+                continue
+            result += item - self.vector[index]
+        return result
 
-            except Exception as e:
-                print("syncMessage")
-                printLog(e)
-        return group_chat_pb2.ChatServerResponse(status="success")
+    def getPosition(self, v):
+        result = 0
+        index = -1
+        pos = -1
+        for item in v:
+            index += 1
+            if index == self.id - 1:
+                continue
+            tmp = item - self.vector[index]
+            if tmp == 1:
+                pos = index
+            result += tmp
+        if result == 1:
+            return pos
+        else:
+            return -1
 
     def prope(self, request, context):
         return group_chat_pb2.Empty()
