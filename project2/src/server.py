@@ -425,7 +425,7 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
                 for server_id in self.peers_address.keys():
                     try:
                         stub = self.getStub(server_id)
-                        stub.probe(group_chat_pb2.Empty())
+                        stub.probe(group_chat_pb2.Empty(), timeout=1)
                         views.append(
                             group_chat_pb2.ChatMessage(content=str(server_id)))
                     except grpc.RpcError as e:
