@@ -7,49 +7,75 @@ a Docker image with all of the necessary dependencies.
 
 To build the image, run:
 
-```
+```Bash
 docker build . -t "cs2510_p2"
 ```
 
-### Basic single-container setup
+## Test instruction
 
-To run a container using this image, you can run:
+In src directory,run
 
-```
-docker run -it --name cs2510_p2 cs2510_p2
-```
-
-This command will give you an interactive bash shell on the container.
-If you want to open additional shells on the same container (e.g. you may have
-one shell for your server and one for your client), you can run (in a separate
-terminal window):
-
-```
-docker exec -it cs2510_p2 bash
+```Bash
+python test_p2.py init
 ```
 
-When you are done using the container, remove it with:
+Wait the script complete, then you should be able to see 5 container running on docker dashboard, or you can confirm by running
 
-```
-docker rm cs2510_p2
-```
-
-## Run group chat application
-
-To start the server, run:
-
-```
-python3 server.py -id [id] (1-5)
+```Bash
+docker ps
 ```
 
-The server has been set to listen on port 8001
+if you want to see the output from the chat_server process on server 1, you can check the logs on docker dashboard or run with the command
 
-To start a client, run:
-
-```
-python3 client.py
+```Bash
+docker logs cs2510_server1
 ```
 
-Our application support all commands showing in the project description, we also provide a demo video as reference.
+### Setting loss rates:
 
-[Demo](https://pitt-my.sharepoint.com/:v:/g/personal/qil77_pitt_edu/EY6yAcTqMn9BuvBo1DLV4hgBq0sNzHcwmLdZtRZpGk34yQ?e=XeTAYj)
+```Bash
+python test_p2.py loss container1 container2 loss-rate
+```
+
+This will add loss-rate percent loss between servers with IDs container1 and container2. For example:
+
+```Bash
+python test_p2.py loss 1 2 20
+```
+
+adds 20% loss between servers 1 and 2.
+
+### Creating partitions:
+
+```Bash
+python test_p2.py partition 1,2 3,4,5
+```
+
+Creates 2 partitions, one containing servers 1 and 2, and another containing servers 3, 4, and 5. NOTE: Creating/modifying partitions removes any loss that was previously added between containers.
+
+### Crashing and restarting servers:
+
+```Bash
+python test_p2.py kill 1
+python test_p2.py relaunch 1
+```
+
+The first command will crash server 1, and the second will restart it.
+
+### Cleaning up:
+
+To remove all server container
+
+```Bash
+python test_p2.py rm
+```
+
+### Running Client Programs
+
+To run one client that connects to the bridge network
+
+```Bash
+docker run -it --cap-add=NET_ADMIN --network cs2510 --rm --name cs2510_client1 cs2510_p2 /bin/bash
+```
+
+To run multiple clients, you just need to give each one a different name using the --name parameter.
