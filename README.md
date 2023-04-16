@@ -4,4 +4,4 @@
 Single Server System
 
 ## Project 2: Replicated version of the group chat system
-Multiple Server, Non-byzantine Distributed System
+Multiple Server, achieve availability, partition tolerance and eventually consistency as much as possible 
