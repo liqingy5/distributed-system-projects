@@ -161,8 +161,6 @@ class ChatClient():
                     "Invalid input format. Please enter a command followed by a message.")
                 continue
             except grpc.RpcError as e:
-                print()
-                print(e)
                 print("Connect to server failed, please try again or different servers")
                 break
 
@@ -191,8 +189,7 @@ class ChatClient():
                         print("{0}. {1}: {2} {3: >10}".format(
                             r.id, r.user, r.content, r.numberOfLikes > 0 and "likes: "+str(r.numberOfLikes) or ""))
         except grpc.RpcError as e:
-            printLog("Server disconnected")
-            print(e)
+            print("Server disconnected")
             self.reset()
 
     def run(self):

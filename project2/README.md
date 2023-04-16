@@ -13,13 +13,15 @@ docker build . -t "cs2510_p2"
 
 ## Test instruction
 
-In src directory,run
+### Environment set up
+
+In src directory, run the test script to set up docker containers with bridge network. (To instructor: we have configure the test script to match our application, please use our test_p2.py in src directory for testing)
 
 ```Bash
 python test_p2.py init
 ```
 
-Wait the script complete, then you should be able to see 5 container running on docker dashboard, or you can confirm by running
+Wait the script to complete, then you should be able to see 5 containers running on docker dashboard, or you can confirm by running
 
 ```Bash
 docker ps
@@ -79,3 +81,23 @@ docker run -it --cap-add=NET_ADMIN --network cs2510 --rm --name cs2510_client1 c
 ```
 
 To run multiple clients, you just need to give each one a different name using the --name parameter.
+
+To start the client.py, run
+
+```Bash
+python3 client.py
+```
+
+To connect to the server to with server id 1 in the docker container, you can either type
+
+```
+c cs2510_server1 8081
+```
+
+or
+
+```
+c 172.30.100.101 8081
+```
+
+There are total 5 servers and id from 1 to 5, by replace the id parameter in cs2510_server[id] or 172.30.100.10[id] can connect to different servers
