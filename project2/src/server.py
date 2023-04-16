@@ -308,16 +308,18 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
                         self.queue[sender_id-1].pop()
                     else:
                         break
+                print("mode: ", mode)
                 if mode == 1 and not self.queue[sender_id-1].isEmpty() and self.compareVector(self.queue[sender_id-1].front()[0]) > 1:
                     #have messages that bigger than self.vector at least 2, do sync
                     try:
-                        tmpId = sender_id - 1
-                        if sender_id > self.id:
-                            tmpId -= 1
+                        print("request retransmission")
+                        print(sender_id)
+                        print(self.vector)
+
                         self.queue[sender_id-1].clear()
                         reqForSync = group_chat_pb2.ChatServerSyncRequest(
                             vector=self.vector, server_id=self.id)
-                        response_from_server = self.getStub(tmpId).syncMessage(
+                        response_from_server = self.getStub(sender_id).syncMessage(
                             reqForSync, timeout=1)
                     except Exception as e:
                         printLog(e)
