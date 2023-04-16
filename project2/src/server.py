@@ -46,21 +46,16 @@ class ChatRoom:
         self.messages = []
 
     # add an user, the key is uuid and the value is username
-    def add_user(self, user, id, server_id):
-        self.users[id] = (user, server_id)
-        for k, v in self.users.items():
-            print(k, " ", v)
+    def add_user(self, user, msgId, server_id):
+        self.users[msgId] = (user, server_id)
 
     # remove an user, just remove the certain uuid's user, if there are two same username in a group, only remove one of them
-    def remove_user(self, id):
-        if id in self.users:
-            del self.users[id]
+    def remove_user(self, msgId):
+        if msgId in self.users:
+            del self.users[msgId]
 
     def get_user_by_server_id(self, server_id):
-        print(server_id)
-        print()
         for key, value in self.users.items():
-            print(value)
             if value[1] == server_id:
                 return key
         return None
@@ -69,9 +64,9 @@ class ChatRoom:
         self.messages.append(message)
 
     def add_like(self, user, message_id):
-        id = message_id - 1
-        if id in range(len(self.messages)):
-            message = self.messages[id]
+        msgId = message_id - 1
+        if msgId in range(len(self.messages)):
+            message = self.messages[msgId]
         else:
             return False
         if user != message.user and user not in message.likes:
@@ -81,9 +76,9 @@ class ChatRoom:
             return False
 
     def remove_like(self, user, message_id):
-        id = message_id - 1
-        if id in range(len(self.messages)):
-            message = self.messages[id]
+        msgId = message_id - 1
+        if msgId in range(len(self.messages)):
+            message = self.messages[msgId]
         else:
             return False
         if user in message.likes:
@@ -96,8 +91,8 @@ class ChatRoom:
 
 
 class ChatMessage:
-    def __init__(self, id, user, message):
-        self.id = id
+    def __init__(self, msgId, user, message):
+        self.id = msgId
         self.user = user
         self.message = message
         self.likes = set()
@@ -188,16 +183,15 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
         # type 1: login, 2: join, 3: chat, 4: like, 5: dislike, 6: history, 7: quit
         try:
             uuid = []
-            new_req = group_chat_pb2.ChatInput()
-            new_req.CopyFrom(request)
-            new_req.serverId = self.id
+            request.serverId = self.id
             with self.lock:
-                response = self.processClientRequest(new_req)
+                response = self.processClientRequest(request)
             if response.status == "success":
                 with self.lock:
                     self.vector[self.id-1] += 1
-                    self.log.append([self.vector[:], new_req])
+                    self.log.append([self.vector[:], request])
                     self.saveToDisk()
+                deleteList = []
                 for server_id in self.peers_address.keys():
                     try:
                         stub = self.getStub(server_id)
@@ -211,21 +205,23 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
                             tmp = self.groups[self.users[request.uuid]].get_user_by_server_id(server_id)
                             if tmp != None:
                                 uuid.append(tmp)
-                        self.removeStub(server_id)
+                        deleteList.append(server_id)
                         print("error")
                         printLog(e)
                         continue
                 req = group_chat_pb2.ChatServerRequest(vector=self.vector,
-                                                       request=new_req, server_id=self.id, mode=1)
+                                                       request=request, server_id=self.id, mode=1)
                 for server_id in self.peers_address.keys():
                     try:
                         stub = self.getStub(server_id)
                         response_from_server = stub.sendMessage(
                             req, timeout=TIME_OUT)
                     except Exception as e:
-                        self.removeStub(server_id)
+                        deleteList.append(server_id)
                         printLog(e)
                         continue
+                for server_id in deleteList:
+                    self.removeStub(server_id)
             if len(uuid) > 0:
                 print("exit")
                 print(uuid)
@@ -380,7 +376,8 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
                 self.groups[request.groupName].add_user(request.userName, request.uuid, request.serverId)
                 self.users[request.uuid] = request.groupName
                 participantsSet = set()
-                for value in self.groups[request.groupName].users.values():
+                tmpUsers = self.groups[request.groupName].users.copy()
+                for value in tmpUsers.values():
                     participantsSet.add(value[0])
                 return group_chat_pb2.ChatOutput(status="success", messages=[], user=list(participantsSet))
             elif _type == 3:
@@ -422,6 +419,7 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
                 return group_chat_pb2.ChatOutput(status="success", messages=[])
             elif _type == 8:
                 views = [group_chat_pb2.ChatMessage(content=str(self.id))]
+                deleteList = []
                 for server_id in self.peers_address.keys():
                     try:
                         stub = self.getStub(server_id)
@@ -429,8 +427,10 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
                         views.append(
                             group_chat_pb2.ChatMessage(content=str(server_id)))
                     except grpc.RpcError as e:
-                        self.removeStub(server_id)
+                        deleteList.append(server_id)
                         continue
+                for server_id in deleteList:
+                    self.removeStub(server_id)
                 return group_chat_pb2.ChatOutput(status="success", messages=views)
             else:
                 return group_chat_pb2.ChatOutput(status="failed", messages=[])
@@ -441,7 +441,8 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
         if request.uuid not in self.lastId.keys():
             self.lastId[request.uuid] = 0
         participantsSet = set()
-        for value in self.groups[request.groupName].users.values():
+        tmpUsers = self.groups[request.groupName].users.copy()
+        for value in tmpUsers.values():
             participantsSet.add(value[0])
         lastParticipants = len(list(participantsSet))
         while (True):
@@ -458,7 +459,8 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
                 break
             # if number of participants changed
             participantsSet = set()
-            for value in self.groups[request.groupName].users.values():
+            tmpUsers = self.groups[request.groupName].users.copy()
+            for value in tmpUsers.values():
                 participantsSet.add(value[0])
             participants = list(participantsSet)
             if (lastParticipants != len(participants)):

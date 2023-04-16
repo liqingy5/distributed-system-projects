@@ -30,7 +30,6 @@ class ChatClient():
         self.listen_thread = None
         self.exit = False
         self.uuid = str(uuid.uuid4())
-        self.resetFlag = False
 
     # Getting user input and sending messages to server
 
@@ -44,10 +43,9 @@ class ChatClient():
         # Loop for keeping reading user input
         while True:
             try:
-                if self.resetFlag:
-                    self.resetFlag = False
-                    break
                 inputs = input().split(maxsplit=1)
+                if self.stub == None:
+                    break
                 if (len(inputs) == 1):
                     _com = inputs[0]
                     _message = ""
@@ -105,6 +103,9 @@ class ChatClient():
                             print("Login failed, please try again")
                     # Send join group message to the server if logged in
                     elif _type == 2 and self.loginName is not None:
+                        if self.groupName == _message:
+                            print(f"You are already in the group {_message}")
+                            continue
                         self.groupName = _message
                         request = group_chat_pb2.ChatInput(
                             type=_type, message=_message, userName=self.loginName, groupName=_message, messageId=0, uuid=self.uuid)
@@ -160,6 +161,8 @@ class ChatClient():
                     "Invalid input format. Please enter a command followed by a message.")
                 continue
             except grpc.RpcError as e:
+                print()
+                print(e)
                 print("Connect to server failed, please try again or different servers")
                 break
 
@@ -189,7 +192,8 @@ class ChatClient():
                             r.id, r.user, r.content, r.numberOfLikes > 0 and "likes: "+str(r.numberOfLikes) or ""))
         except grpc.RpcError as e:
             printLog("Server disconnected")
-            self.reset(True)
+            print(e)
+            self.reset()
 
     def run(self):
         print("Please type 'c <hostname> <portnumber> to connect to Server")
@@ -229,7 +233,7 @@ class ChatClient():
                 r.id, r.user, r.content, r.numberOfLikes > 0 and "likes: "+str(r.numberOfLikes) or ""))
         print("------------------------------------")
 
-    def reset(self, flag = False):
+    def reset(self):
         if (self.channel != None):
             self.channel.close()
         self.channel = None
@@ -237,7 +241,6 @@ class ChatClient():
         self.groupName = None
         self.loginName = None
         self.uuid = str(uuid.uuid4())
-        self.resetFlag = flag
 
 
 def printLog(msg):
