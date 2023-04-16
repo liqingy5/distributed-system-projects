@@ -33,6 +33,36 @@ if you want to see the output from the chat_server process on server 1, you can 
 docker logs cs2510_server1
 ```
 
+### Running Client Programs
+
+To run one client that connects to the bridge network
+
+```Bash
+docker run -it --cap-add=NET_ADMIN --network cs2510 --rm --name cs2510_client1 cs2510_p2 /bin/bash
+```
+
+To run multiple clients, you just need to give each one a different name using the --name parameter.
+
+To start the client.py, run
+
+```Bash
+python3 client.py
+```
+
+To connect to the server to with server id 1 in the docker container, you can either type
+
+```
+c cs2510_server1 8081
+```
+
+or
+
+```
+c 172.30.100.101 8081
+```
+
+There are total 5 servers and id from 1 to 5, by replace the id parameter in cs2510_server[id] or 172.30.100.10[id] can connect to different servers
+
 ### Setting loss rates:
 
 ```Bash
@@ -71,33 +101,3 @@ To remove all server container
 ```Bash
 python test_p2.py rm
 ```
-
-### Running Client Programs
-
-To run one client that connects to the bridge network
-
-```Bash
-docker run -it --cap-add=NET_ADMIN --network cs2510 --rm --name cs2510_client1 cs2510_p2 /bin/bash
-```
-
-To run multiple clients, you just need to give each one a different name using the --name parameter.
-
-To start the client.py, run
-
-```Bash
-python3 client.py
-```
-
-To connect to the server to with server id 1 in the docker container, you can either type
-
-```
-c cs2510_server1 8081
-```
-
-or
-
-```
-c 172.30.100.101 8081
-```
-
-There are total 5 servers and id from 1 to 5, by replace the id parameter in cs2510_server[id] or 172.30.100.10[id] can connect to different servers
