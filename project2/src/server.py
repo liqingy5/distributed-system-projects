@@ -16,7 +16,7 @@ import logging
 logger = logging.getLogger()
 
 DEBUG = False
-TIME_OUT = 0.5
+TIME_OUT = 5
 
 
 def isConcurrent(r_vt, s_vt):
@@ -53,12 +53,6 @@ class ChatRoom:
     def remove_user(self, msgId):
         if msgId in self.users:
             del self.users[msgId]
-
-    def get_user_by_server_id(self, server_id):
-        for key, value in self.users.items():
-            if value[1] == server_id:
-                return key
-        return None
 
     def add_message(self, message):
         self.messages.append(message)
@@ -163,7 +157,7 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
         self.channels = {}
 
         self.lock = threading.Lock()
-
+        self.debugLog = []
         self.decodeFromFile()
     
     def getStub(self, server_id):
@@ -182,33 +176,33 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
     def chatFunction(self, request, context):
         # type 1: login, 2: join, 3: chat, 4: like, 5: dislike, 6: history, 7: quit
         try:
-            uuid = []
             request.serverId = self.id
             with self.lock:
                 response = self.processClientRequest(request)
-            if response.status == "success":
+            if response.status == "success" and request.type != 8:
                 with self.lock:
                     self.vector[self.id-1] += 1
                     self.log.append([self.vector[:], request])
                     self.saveToDisk()
                 deleteList = []
+                self.writeLog("before vector" + str(self.vector))
                 for server_id in self.peers_address.keys():
                     try:
                         stub = self.getStub(server_id)
                         reqForSync = group_chat_pb2.ChatServerSyncRequest(
                             vector=self.vector, server_id=self.id)
                         response_from_server = stub.syncMessage(
-                            reqForSync, timeout=1)
+                            reqForSync, timeout=TIME_OUT)
                     except Exception as e:
+                        self.writeLog("server: "+ str(server_id))
                         print("server: ", server_id)
-                        if request.uuid in self.users and self.users[request.uuid] in self.groups:
-                            tmp = self.groups[self.users[request.uuid]].get_user_by_server_id(server_id)
-                            if tmp != None:
-                                uuid.append(tmp)
                         deleteList.append(server_id)
+                        self.writeLog("chat function error")
+                        self.writeLog(str(e))
                         print("error")
                         printLog(e)
                         continue
+                self.writeLog("after vector" + str(self.vector))
                 req = group_chat_pb2.ChatServerRequest(vector=self.vector,
                                                        request=request, server_id=self.id, mode=1)
                 for server_id in self.peers_address.keys():
@@ -222,15 +216,9 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
                         continue
                 for server_id in deleteList:
                     self.removeStub(server_id)
-            if len(uuid) > 0:
-                print("exit")
-                print(uuid)
-                for item in uuid:
-                    request = group_chat_pb2.ChatInput(
-                            type=7, message="", userName="", groupName="", messageId=0, uuid=item)
-                    self.chatFunction(request, context)
         except Exception as e:
             print("Chat function error")
+            print(e)
             printLog(e)
         return response
 
@@ -242,6 +230,11 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
         print("Sync!!!!")
         print(r_vt)
         print(value)
+        self.writeLog("")
+        self.writeLog("Sync!!!!")
+        self.writeLog("received: " + str(r_vt))
+        self.writeLog("self: " + str(self.vector))
+        self.writeLog(str(value))
         if value != 'greater':
             with self.lock:
                 for i in reversed(self.log):
@@ -260,6 +253,8 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
                         self.getStub(sender_id).sendMessage(group_chat_pb2.ChatServerRequest(
                             vector=vector, request=req, server_id=self.id, mode=0), timeout=TIME_OUT)
                     except Exception as e:
+                        self.writeLog("sync message error")
+                        self.writeLog(str(e))
                         print("error")
                         print(e)
                         printLog(e)
@@ -272,14 +267,18 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
         mode = request.mode
         print()
         print("receive")
+        self.writeLog("")
+        self.writeLog("receive message")
+        self.writeLog(str(r_vt))
         try:
             with self.lock:
                 # if the request.vector[sender_id-1] is greater than self.vector[sender_id-1] + 1,
                 # and other timestamp is at least as large as self.vector, then update
                 # else put the request into the queue
-                if r_vt[sender_id - 1] == self.vector[sender_id-1] + 1 and all(r_vt[k] >= self.vector[k] for k in range(len(self.vector)) if k != sender_id-1):
+                if r_vt[sender_id - 1] == self.vector[sender_id-1] + 1 and all(r_vt[k] == self.vector[k] for k in range(len(self.vector)) if k != sender_id-1):
                     print("OK")
                     print()
+                    self.writeLog("OK")
                     self.vector[sender_id - 1] += 1
                     self.log.append([self.vector[:], req])
                     self.processClientRequest(req)
@@ -288,6 +287,7 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
                     value = isConcurrent(r_vt, self.vector)
                     print("NOT OK ", value)
                     print()
+                    self.writeLog("NOT OK " + str(value))
                     if value == "greater" or value == "concurrent":
                         self.queue[sender_id-1].push(r_vt, req)
                 while not self.queue[sender_id-1].isEmpty():
@@ -296,6 +296,9 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
                     print("CACHE ", pos)
                     print("CACHE ", self.compareVector(self.queue[sender_id-1].front()[0]))
                     print()
+                    self.writeLog(str(self.queue[sender_id-1].front()[1]))
+                    self.writeLog("POS " + str(pos))
+                    self.writeLog("CACHE " +str(self.compareVector(self.queue[sender_id-1].front()[0])))
                     #apply next message
                     if pos != -1:
                         req = self.queue[sender_id - 1].pop()[1]
@@ -309,22 +312,27 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
                     else:
                         break
                 print("mode: ", mode)
+                self.writeLog("mode " + str(mode))
+                self.writeLog("vector" + str(self.vector))
                 if mode == 1 and not self.queue[sender_id-1].isEmpty() and self.compareVector(self.queue[sender_id-1].front()[0]) > 1:
                     #have messages that bigger than self.vector at least 2, do sync
                     try:
                         print("request retransmission")
                         print(sender_id)
                         print(self.vector)
-
+                        self.writeLog("retran")
+                        self.writeLog(str(sender_id))
+                        self.writeLog("self" + str(self.vector))
                         self.queue[sender_id-1].clear()
                         reqForSync = group_chat_pb2.ChatServerSyncRequest(
                             vector=self.vector, server_id=self.id)
                         response_from_server = self.getStub(sender_id).syncMessage(
-                            reqForSync, timeout=1)
+                            reqForSync, timeout=TIME_OUT)
                     except Exception as e:
                         printLog(e)
 
         except Exception as e:
+            self.writeLog("Send message error")
             print("Send message error")
             printLog(e)
         return group_chat_pb2.ChatServerResponse(status="success")
@@ -336,7 +344,10 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
             index += 1
             if index == self.id - 1:
                 continue
-            result += item - self.vector[index]
+            tmp = item - self.vector[index]
+            if tmp <= 0:
+                continue
+            result += tmp
         return result
 
     def getPosition(self, v):
@@ -348,6 +359,8 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
             if index == self.id - 1:
                 continue
             tmp = item - self.vector[index]
+            if tmp <= 0:
+                continue
             if tmp == 1:
                 pos = index
             result += tmp
@@ -425,7 +438,7 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
                 for server_id in self.peers_address.keys():
                     try:
                         stub = self.getStub(server_id)
-                        stub.probe(group_chat_pb2.Empty(), timeout=1)
+                        stub.probe(group_chat_pb2.Empty(), timeout=0.5)
                         views.append(
                             group_chat_pb2.ChatMessage(content=str(server_id)))
                     except grpc.RpcError as e:
@@ -481,6 +494,9 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
         if (isfile(f'./logs/log_{server_id}.json')):
             with open(f'./logs/log_{server_id}.json', 'r') as fp:
                 self.log = log_decoder(json.load(fp))
+        if (isfile(f'./logs/dlog_{server_id}.json')):
+            with open(f'./logs/dlog_{server_id}.json', 'r') as fp:
+                self.debugLog = json.load(fp)
         for log in self.log:
             with self.lock:
                 self.processClientRequest(log[1])
@@ -490,6 +506,11 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
         printLog("Writing...")
         with open(f'./logs/log_{self.id}.json', 'w') as f:
             json.dump(log_encoder(self.log), f, indent=4)
+
+    def writeLog(self, log):
+        self.debugLog.append(log)
+        with open(f'./logs/dlog_{self.id}.json', 'w') as f:
+            json.dump(self.debugLog, f, indent=4)
 
 
 def start_server():
