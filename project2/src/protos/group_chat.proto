@@ -19,6 +19,7 @@ message ChatInput {
     string message = 4;
     int32 messageId = 5;
     string uuid = 6;
+    int32 serverId = 7;
 }
 
 message ChatOutput {
@@ -42,6 +43,7 @@ message ChatServerRequest {
     repeated int32 vector = 1;
     ChatInput request = 2;
     int32 server_id = 3;
+    int32 mode = 4;
 }
 
 message ChatServerResponse {

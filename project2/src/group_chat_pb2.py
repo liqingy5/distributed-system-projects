@@ -13,29 +13,29 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10group_chat.proto\x12\tgroupChat\"p\n\tChatInput\x12\x10\n\x08userName\x18\x01 \x01(\t\x12\x11\n\tgroupName\x18\x02 \x01(\t\x12\x0c\n\x04type\x18\x03 \x01(\x05\x12\x0f\n\x07message\x18\x04 \x01(\t\x12\x11\n\tmessageId\x18\x05 \x01(\x05\x12\x0c\n\x04uuid\x18\x06 \x01(\t\"T\n\nChatOutput\x12\x0e\n\x06status\x18\x01 \x01(\t\x12(\n\x08messages\x18\x02 \x03(\x0b\x32\x16.groupChat.ChatMessage\x12\x0c\n\x04user\x18\x03 \x03(\t\"O\n\x0b\x43hatMessage\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x0c\n\x04user\x18\x02 \x01(\t\x12\x0f\n\x07\x63ontent\x18\x03 \x01(\t\x12\x15\n\rnumberOfLikes\x18\x04 \x01(\x05\"\x07\n\x05\x45mpty\"]\n\x11\x43hatServerRequest\x12\x0e\n\x06vector\x18\x01 \x03(\x05\x12%\n\x07request\x18\x02 \x01(\x0b\x32\x14.groupChat.ChatInput\x12\x11\n\tserver_id\x18\x03 \x01(\x05\"$\n\x12\x43hatServerResponse\x12\x0e\n\x06status\x18\x01 \x01(\t\":\n\x15\x43hatServerSyncRequest\x12\x0e\n\x06vector\x18\x01 \x03(\x05\x12\x11\n\tserver_id\x18\x02 \x01(\x05\"(\n\x16\x43hatServerSyncResponse\x12\x0e\n\x06status\x18\x01 \x01(\t2\xd9\x02\n\nChatServer\x12=\n\x0c\x63hatFunction\x12\x14.groupChat.ChatInput\x1a\x15.groupChat.ChatOutput\"\x00\x12?\n\x0bgetMessages\x12\x14.groupChat.ChatInput\x1a\x16.groupChat.ChatMessage\"\x00\x30\x01\x12R\n\x0bsyncMessage\x12 .groupChat.ChatServerSyncRequest\x1a!.groupChat.ChatServerSyncResponse\x12J\n\x0bsendMessage\x12\x1c.groupChat.ChatServerRequest\x1a\x1d.groupChat.ChatServerResponse\x12+\n\x05probe\x12\x10.groupChat.Empty\x1a\x10.groupChat.Emptyb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10group_chat.proto\x12\tgroupChat\"\x82\x01\n\tChatInput\x12\x10\n\x08userName\x18\x01 \x01(\t\x12\x11\n\tgroupName\x18\x02 \x01(\t\x12\x0c\n\x04type\x18\x03 \x01(\x05\x12\x0f\n\x07message\x18\x04 \x01(\t\x12\x11\n\tmessageId\x18\x05 \x01(\x05\x12\x0c\n\x04uuid\x18\x06 \x01(\t\x12\x10\n\x08serverId\x18\x07 \x01(\x05\"T\n\nChatOutput\x12\x0e\n\x06status\x18\x01 \x01(\t\x12(\n\x08messages\x18\x02 \x03(\x0b\x32\x16.groupChat.ChatMessage\x12\x0c\n\x04user\x18\x03 \x03(\t\"O\n\x0b\x43hatMessage\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x0c\n\x04user\x18\x02 \x01(\t\x12\x0f\n\x07\x63ontent\x18\x03 \x01(\t\x12\x15\n\rnumberOfLikes\x18\x04 \x01(\x05\"\x07\n\x05\x45mpty\"k\n\x11\x43hatServerRequest\x12\x0e\n\x06vector\x18\x01 \x03(\x05\x12%\n\x07request\x18\x02 \x01(\x0b\x32\x14.groupChat.ChatInput\x12\x11\n\tserver_id\x18\x03 \x01(\x05\x12\x0c\n\x04mode\x18\x04 \x01(\x05\"$\n\x12\x43hatServerResponse\x12\x0e\n\x06status\x18\x01 \x01(\t\":\n\x15\x43hatServerSyncRequest\x12\x0e\n\x06vector\x18\x01 \x03(\x05\x12\x11\n\tserver_id\x18\x02 \x01(\x05\"(\n\x16\x43hatServerSyncResponse\x12\x0e\n\x06status\x18\x01 \x01(\t2\xd9\x02\n\nChatServer\x12=\n\x0c\x63hatFunction\x12\x14.groupChat.ChatInput\x1a\x15.groupChat.ChatOutput\"\x00\x12?\n\x0bgetMessages\x12\x14.groupChat.ChatInput\x1a\x16.groupChat.ChatMessage\"\x00\x30\x01\x12R\n\x0bsyncMessage\x12 .groupChat.ChatServerSyncRequest\x1a!.groupChat.ChatServerSyncResponse\x12J\n\x0bsendMessage\x12\x1c.groupChat.ChatServerRequest\x1a\x1d.groupChat.ChatServerResponse\x12+\n\x05probe\x12\x10.groupChat.Empty\x1a\x10.groupChat.Emptyb\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'group_chat_pb2', globals())
 if _descriptor._USE_C_DESCRIPTORS == False:
 
   DESCRIPTOR._options = None
-  _CHATINPUT._serialized_start=31
-  _CHATINPUT._serialized_end=143
-  _CHATOUTPUT._serialized_start=145
-  _CHATOUTPUT._serialized_end=229
-  _CHATMESSAGE._serialized_start=231
-  _CHATMESSAGE._serialized_end=310
-  _EMPTY._serialized_start=312
-  _EMPTY._serialized_end=319
-  _CHATSERVERREQUEST._serialized_start=321
-  _CHATSERVERREQUEST._serialized_end=414
-  _CHATSERVERRESPONSE._serialized_start=416
-  _CHATSERVERRESPONSE._serialized_end=452
-  _CHATSERVERSYNCREQUEST._serialized_start=454
-  _CHATSERVERSYNCREQUEST._serialized_end=512
-  _CHATSERVERSYNCRESPONSE._serialized_start=514
-  _CHATSERVERSYNCRESPONSE._serialized_end=554
-  _CHATSERVER._serialized_start=557
-  _CHATSERVER._serialized_end=902
+  _CHATINPUT._serialized_start=32
+  _CHATINPUT._serialized_end=162
+  _CHATOUTPUT._serialized_start=164
+  _CHATOUTPUT._serialized_end=248
+  _CHATMESSAGE._serialized_start=250
+  _CHATMESSAGE._serialized_end=329
+  _EMPTY._serialized_start=331
+  _EMPTY._serialized_end=338
+  _CHATSERVERREQUEST._serialized_start=340
+  _CHATSERVERREQUEST._serialized_end=447
+  _CHATSERVERRESPONSE._serialized_start=449
+  _CHATSERVERRESPONSE._serialized_end=485
+  _CHATSERVERSYNCREQUEST._serialized_start=487
+  _CHATSERVERSYNCREQUEST._serialized_end=545
+  _CHATSERVERSYNCRESPONSE._serialized_start=547
+  _CHATSERVERSYNCRESPONSE._serialized_end=587
+  _CHATSERVER._serialized_start=590
+  _CHATSERVER._serialized_end=935
 # @@protoc_insertion_point(module_scope)

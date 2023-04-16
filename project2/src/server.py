@@ -46,13 +46,24 @@ class ChatRoom:
         self.messages = []
 
     # add an user, the key is uuid and the value is username
-    def add_user(self, user, id):
-        self.users[id] = user
+    def add_user(self, user, id, server_id):
+        self.users[id] = (user, server_id)
+        for k, v in self.users.items():
+            print(k, " ", v)
 
     # remove an user, just remove the certain uuid's user, if there are two same username in a group, only remove one of them
     def remove_user(self, id):
         if id in self.users:
             del self.users[id]
+
+    def get_user_by_server_id(self, server_id):
+        print(server_id)
+        print()
+        for key, value in self.users.items():
+            print(value)
+            if value[1] == server_id:
+                return key
+        return None
 
     def add_message(self, message):
         self.messages.append(message)
@@ -153,41 +164,75 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
 
         self.peers_address = {
             _id: server_address[_id] for _id in server_address.keys() if _id != self.id}
-        self.stubs = {_id: group_chat_pb2_grpc.ChatServerStub(grpc.insecure_channel(
-            server_address[_id])) for _id in server_address.keys() if _id != self.id}
+        self.stubs = {}
+        self.channels = {}
 
         self.lock = threading.Lock()
 
         self.decodeFromFile()
+    
+    def getStub(self, server_id):
+        if server_id in self.channels:
+            return self.stubs[server_id]
+        self.channels[server_id] = grpc.insecure_channel(self.peers_address[server_id])
+        self.stubs[server_id] = group_chat_pb2_grpc.ChatServerStub(self.channels[server_id])
+        return self.stubs[server_id]
+
+    def removeStub(self, server_id):
+        if server_id in self.channels:
+            del self.channels[server_id]
+        if server_id in self.stubs:
+            del self.stubs[server_id]
 
     def chatFunction(self, request, context):
-        # type 1: login, 2: join, 3: chat, 4: like, 5: dislike, 6: history
+        # type 1: login, 2: join, 3: chat, 4: like, 5: dislike, 6: history, 7: quit
         try:
+            uuid = []
+            new_req = group_chat_pb2.ChatInput()
+            new_req.CopyFrom(request)
+            new_req.serverId = self.id
             with self.lock:
-                response = self.processClientRequest(request)
+                response = self.processClientRequest(new_req)
             if response.status == "success":
                 with self.lock:
                     self.vector[self.id-1] += 1
-                    self.log.append([self.vector[:], request])
+                    self.log.append([self.vector[:], new_req])
                     self.saveToDisk()
-                for stub in self.stubs.values():
+                for server_id in self.peers_address.keys():
                     try:
+                        stub = self.getStub(server_id)
                         reqForSync = group_chat_pb2.ChatServerSyncRequest(
                             vector=self.vector, server_id=self.id)
                         response_from_server = stub.syncMessage(
                             reqForSync, timeout=1)
                     except Exception as e:
+                        print("server: ", server_id)
+                        if request.uuid in self.users and self.users[request.uuid] in self.groups:
+                            tmp = self.groups[self.users[request.uuid]].get_user_by_server_id(server_id)
+                            if tmp != None:
+                                uuid.append(tmp)
+                        self.removeStub(server_id)
+                        print("error")
                         printLog(e)
                         continue
                 req = group_chat_pb2.ChatServerRequest(vector=self.vector,
-                                                       request=request, server_id=self.id)
-                for stub in self.stubs.values():
+                                                       request=new_req, server_id=self.id, mode=1)
+                for server_id in self.peers_address.keys():
                     try:
+                        stub = self.getStub(server_id)
                         response_from_server = stub.sendMessage(
                             req, timeout=TIME_OUT)
                     except Exception as e:
+                        self.removeStub(server_id)
                         printLog(e)
                         continue
+            if len(uuid) > 0:
+                print("exit")
+                print(uuid)
+                for item in uuid:
+                    request = group_chat_pb2.ChatInput(
+                            type=7, message="", userName="", groupName="", messageId=0, uuid=item)
+                    self.chatFunction(request, context)
         except Exception as e:
             print("Chat function error")
             printLog(e)
@@ -197,6 +242,10 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
         r_vt = request.vector
         sender_id = request.server_id
         value = isConcurrent(r_vt, self.vector)
+        print()
+        print("Sync!!!!")
+        print(r_vt)
+        print(value)
         if value != 'greater':
             with self.lock:
                 for i in reversed(self.log):
@@ -205,12 +254,18 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
                     if (req == None):
                         continue
                     temp = isConcurrent(vector, r_vt)
+                    print()
+                    print(vector)
+                    print(temp)
+                    print()
                     if temp == 'smaller':
                         break
                     try:
-                        self.stubs[sender_id].sendMessage(group_chat_pb2.ChatServerRequest(
-                            vector=vector, request=req, server_id=self.id), timeout=TIME_OUT)
+                        self.getStub(sender_id).sendMessage(group_chat_pb2.ChatServerRequest(
+                            vector=vector, request=req, server_id=self.id, mode=0), timeout=TIME_OUT)
                     except Exception as e:
+                        print("error")
+                        print(e)
                         printLog(e)
         return group_chat_pb2.ChatServerResponse(status="success")
 
@@ -218,32 +273,58 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
         r_vt = request.vector
         req = request.request
         sender_id = request.server_id
+        mode = request.mode
+        print()
+        print("receive")
         try:
             with self.lock:
                 # if the request.vector[sender_id-1] is greater than self.vector[sender_id-1] + 1,
                 # and other timestamp is at least as large as self.vector, then update
                 # else put the request into the queue
                 if r_vt[sender_id - 1] == self.vector[sender_id-1] + 1 and all(r_vt[k] >= self.vector[k] for k in range(len(self.vector)) if k != sender_id-1):
+                    print("OK")
+                    print()
                     self.vector[sender_id - 1] += 1
                     self.log.append([self.vector[:], req])
                     self.processClientRequest(req)
                     self.saveToDisk()
                 else:
                     value = isConcurrent(r_vt, self.vector)
-                    if value == "bigger" or value == "concurrent":
+                    print("NOT OK ", value)
+                    print()
+                    if value == "greater" or value == "concurrent":
                         self.queue[sender_id-1].push(r_vt, req)
                 while not self.queue[sender_id-1].isEmpty():
                     pos = self.getPosition(self.queue[sender_id-1].front()[0])
+                    print(self.queue[sender_id-1].front()[1])
+                    print("CACHE ", pos)
+                    print("CACHE ", self.compareVector(self.queue[sender_id-1].front()[0]))
+                    print()
+                    #apply next message
                     if pos != -1:
                         req = self.queue[sender_id - 1].pop()[1]
                         self.vector[pos] += 1
                         self.log.append([self.vector[:], req])
                         self.processClientRequest(req)
                         self.saveToDisk()
+                    #ignore messages with smaller vector 
                     elif self.compareVector(self.queue[sender_id-1].front()[0]) <= 0:
                         self.queue[sender_id-1].pop()
                     else:
                         break
+                if mode == 1 and not self.queue[sender_id-1].isEmpty() and self.compareVector(self.queue[sender_id-1].front()[0]) > 1:
+                    #have messages that bigger than self.vector at least 2, do sync
+                    try:
+                        tmpId = sender_id - 1
+                        if sender_id > self.id:
+                            tmpId -= 1
+                        self.queue[sender_id-1].clear()
+                        reqForSync = group_chat_pb2.ChatServerSyncRequest(
+                            vector=self.vector, server_id=self.id)
+                        response_from_server = self.getStub(tmpId).syncMessage(
+                            reqForSync, timeout=1)
+                    except Exception as e:
+                        printLog(e)
 
         except Exception as e:
             print("Send message error")
@@ -292,15 +373,16 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
             elif _type == 2:
                 # if the user joined another group, we need to remove it from that group
                 if request.uuid in self.users and self.users[request.uuid] in self.groups:
-                    self.groups[self.users[request.uuid]
-                                ].remove_user(request.uuid)
+                    self.groups[self.users[request.uuid]].remove_user(request.uuid)
                 if request.groupName not in self.groups.keys():
                     self.groups[request.groupName] = ChatRoom(
                         request.groupName)
-                self.groups[request.groupName].add_user(
-                    request.userName, request.uuid)
+                self.groups[request.groupName].add_user(request.userName, request.uuid, request.serverId)
                 self.users[request.uuid] = request.groupName
-                return group_chat_pb2.ChatOutput(status="success", messages=[], user=list(set(self.groups[request.groupName].users.values())))
+                participantsSet = set()
+                for value in self.groups[request.groupName].users.values():
+                    participantsSet.add(value[0])
+                return group_chat_pb2.ChatOutput(status="success", messages=[], user=list(participantsSet))
             elif _type == 3:
                 chatRoom = self.groups[request.groupName]
                 chatRoom.add_message(ChatMessage(
@@ -336,17 +418,18 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
             elif _type == 7:
                 # if the user joined another group, we need to remove it from that group
                 if request.uuid in self.users and self.users[request.uuid] in self.groups:
-                    self.groups[self.users[request.uuid]
-                                ].remove_user(request.uuid)
+                    self.groups[self.users[request.uuid]].remove_user(request.uuid)
                 return group_chat_pb2.ChatOutput(status="success", messages=[])
             elif _type == 8:
                 views = [group_chat_pb2.ChatMessage(content=str(self.id))]
-                for id, stub in self.stubs.items():
+                for server_id in self.peers_address.keys():
                     try:
+                        stub = self.getStub(server_id)
                         stub.probe(group_chat_pb2.Empty())
                         views.append(
-                            group_chat_pb2.ChatMessage(content=str(id)))
+                            group_chat_pb2.ChatMessage(content=str(server_id)))
                     except grpc.RpcError as e:
+                        self.removeStub(server_id)
                         continue
                 return group_chat_pb2.ChatOutput(status="success", messages=views)
             else:
@@ -357,8 +440,10 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
     def getMessages(self, request, context):
         if request.uuid not in self.lastId.keys():
             self.lastId[request.uuid] = 0
-        lastParticipants = len(
-            list(set(self.groups[request.groupName].users.values())))
+        participantsSet = set()
+        for value in self.groups[request.groupName].users.values():
+            participantsSet.add(value[0])
+        lastParticipants = len(list(participantsSet))
         while (True):
             # if the user has joined another group, remove it
             if request.uuid not in self.groups[request.groupName].users.keys():
@@ -372,8 +457,10 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
                 chatRoom.remove_user(request.uuid)
                 break
             # if number of participants changed
-            participants = list(
-                set(self.groups[request.groupName].users.values()))
+            participantsSet = set()
+            for value in self.groups[request.groupName].users.values():
+                participantsSet.add(value[0])
+            participants = list(participantsSet)
             if (lastParticipants != len(participants)):
                 lastParticipants = len(participants)
                 yield group_chat_pb2.ChatMessage(id=-998, user=", ".join(participants), content=request.groupName, numberOfLikes=0)
@@ -390,34 +477,15 @@ class ChatServer(group_chat_pb2_grpc.ChatServerServicer):
         if (isfile(f'./logs/log_{server_id}.json')):
             with open(f'./logs/log_{server_id}.json', 'r') as fp:
                 self.log = log_decoder(json.load(fp))
-
-        if (isfile(f'./logs/vector_{server_id}.json')):
-            with open(f'./logs/vector_{server_id}.json', 'r') as fp:
-                self.vector = json.load(fp)
-
-        if (isfile(f'./logs/groups_{server_id}.json')):
-            with open(f'./logs/groups_{server_id}.json', 'r') as fp:
-                self.groups = groups_decoder(json.load(fp))
-
-        if (isfile(f'./logs/users_{server_id}.json')):
-            with open(f'./logs/users_{server_id}.json', 'r') as fp:
-                self.users = json.load(fp)
-        if (isfile(f'./logs/lastId_{server_id}.json')):
-            with open(f'./logs/lastId_{server_id}.json', 'r') as fp:
-                self.lastId = json.load(fp)
+        for log in self.log:
+            with self.lock:
+                self.processClientRequest(log[1])
+                self.vector = log[0][:]
 
     def saveToDisk(self):
         printLog("Writing...")
         with open(f'./logs/log_{self.id}.json', 'w') as f:
             json.dump(log_encoder(self.log), f, indent=4)
-        with open(f'./logs/vector_{self.id}.json', 'w') as f:
-            json.dump(self.vector, f, indent=4)
-        with open(f'./logs/groups_{self.id}.json', 'w') as f:
-            json.dump(self.groups, f, indent=4, cls=ChatRoomEncoder)
-        with open(f'./logs/users_{self.id}.json', 'w') as f:
-            json.dump(self.users, f)
-        with open(f'./logs/lastId_{self.id}.json', 'w') as f:
-            json.dump(self.lastId, f)
 
 
 def start_server():
@@ -455,7 +523,7 @@ def start_server():
 
 def printLog(msg):
     global DEBUG
-    if DEBUG:
+    if False:
         logger.exception(str(msg))
 
 

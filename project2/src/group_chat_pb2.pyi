@@ -6,20 +6,22 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ChatInput(_message.Message):
-    __slots__ = ["groupName", "message", "messageId", "type", "userName", "uuid"]
+    __slots__ = ["groupName", "message", "messageId", "serverId", "type", "userName", "uuid"]
     GROUPNAME_FIELD_NUMBER: _ClassVar[int]
     MESSAGEID_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    SERVERID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     USERNAME_FIELD_NUMBER: _ClassVar[int]
     UUID_FIELD_NUMBER: _ClassVar[int]
     groupName: str
     message: str
     messageId: int
+    serverId: int
     type: int
     userName: str
     uuid: str
-    def __init__(self, userName: _Optional[str] = ..., groupName: _Optional[str] = ..., type: _Optional[int] = ..., message: _Optional[str] = ..., messageId: _Optional[int] = ..., uuid: _Optional[str] = ...) -> None: ...
+    def __init__(self, userName: _Optional[str] = ..., groupName: _Optional[str] = ..., type: _Optional[int] = ..., message: _Optional[str] = ..., messageId: _Optional[int] = ..., uuid: _Optional[str] = ..., serverId: _Optional[int] = ...) -> None: ...
 
 class ChatMessage(_message.Message):
     __slots__ = ["content", "id", "numberOfLikes", "user"]
@@ -44,14 +46,16 @@ class ChatOutput(_message.Message):
     def __init__(self, status: _Optional[str] = ..., messages: _Optional[_Iterable[_Union[ChatMessage, _Mapping]]] = ..., user: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ChatServerRequest(_message.Message):
-    __slots__ = ["request", "server_id", "vector"]
+    __slots__ = ["mode", "request", "server_id", "vector"]
+    MODE_FIELD_NUMBER: _ClassVar[int]
     REQUEST_FIELD_NUMBER: _ClassVar[int]
     SERVER_ID_FIELD_NUMBER: _ClassVar[int]
     VECTOR_FIELD_NUMBER: _ClassVar[int]
+    mode: int
     request: ChatInput
     server_id: int
     vector: _containers.RepeatedScalarFieldContainer[int]
-    def __init__(self, vector: _Optional[_Iterable[int]] = ..., request: _Optional[_Union[ChatInput, _Mapping]] = ..., server_id: _Optional[int] = ...) -> None: ...
+    def __init__(self, vector: _Optional[_Iterable[int]] = ..., request: _Optional[_Union[ChatInput, _Mapping]] = ..., server_id: _Optional[int] = ..., mode: _Optional[int] = ...) -> None: ...
 
 class ChatServerResponse(_message.Message):
     __slots__ = ["status"]
