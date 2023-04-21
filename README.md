@@ -7,4 +7,4 @@ Single Server System
 Multiple Server, achieve availability, partition tolerance and eventually consistency as much as possible 
 
 ## Project3: A comparative study of selected distributed system
-Raft implementaion, key-value storage
+Key-value storage
