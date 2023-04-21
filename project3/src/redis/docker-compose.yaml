@@ -1,4 +1,4 @@
-name: cluster
+name: redis-cluster
 services:
   redis-node-0:
     image: docker.io/bitnami/redis-cluster:7.0

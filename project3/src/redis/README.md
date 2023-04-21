@@ -7,7 +7,13 @@ To create a redis cluster and can be accessed from the outside of the docker con
 Then, run:
 
 ```Bash
-docker compoese up -d
+sh start_redis.sh
+```
+
+## Test
+
+```Bash
+python main.py
 ```
 
 ## Clean Up
@@ -15,5 +21,5 @@ docker compoese up -d
 Delete containers and volumes
 
 ```Bash
-docker compose down && docker volume prune -f
+sh reset_redis.sh
 ```
