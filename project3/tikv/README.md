@@ -61,11 +61,13 @@ tiup playground --mode tikv-slim
 
   ```
 
-- Because the tikv driver in Python only support x86-64 architecture, so run:
+- run tikv client driver
 
   ```Bash
-  python3-intel64 test_raw.py
+  python test_raw.py
   ```
+
+- If showing error, try switch to rosetta terminal on MacOS or use python3-intel64 instead
 
 ## Stop and Delete Tikv cluster
 
