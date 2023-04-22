@@ -70,7 +70,7 @@ tiup playground display
 - run tikv client driver
 
   ```Bash
-  python test_raw.py
+  python test.py
   ```
 
 - If showing error, try switch to rosetta terminal on MacOS or use python3-intel64 instead

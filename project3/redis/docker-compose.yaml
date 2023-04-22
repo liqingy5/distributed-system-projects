@@ -8,7 +8,7 @@ services:
       - ALLOW_EMPTY_PASSWORD=yes
       - REDIS_PORT_NUMBER=8000
       - REDIS_CLUSTER_ANNOUNCE_PORT=8000
-      - REDIS_CLUSTER_ANNOUNCE_IP=192.168.0.12 # 主机IP或公网IP，不要使用127.0.0.1或localhost
+      - REDIS_CLUSTER_ANNOUNCE_IP=192.168.0.12 # 主机IP或公网IP，不要使用127.0.0.1或localhost 192.168.0.12
       - REDIS_CLUSTER_ANNOUNCE_BUS_PORT=18000
       - REDIS_CLUSTER_DYNAMIC_IPS=no
       - REDIS_NODES=redis-node-0:8000 redis-node-1:8001 redis-node-2:8002 redis-node-3:8003 redis-node-4:8004 redis-node-5:8005

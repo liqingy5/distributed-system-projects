@@ -18,4 +18,8 @@ pip install -r requirements.txt.
 
 ## Set up Clusters
 
-Enter each distributed system's direcotry and follow the instruction to set up the environment, then run the python script for testing
+Enter each distributed system's direcotry and follow the instructions to set up the cluster, then run the python script for testing
+
+## Run tests
+
+Enter `./go-ycsb` directory and follow the instructions to run tests

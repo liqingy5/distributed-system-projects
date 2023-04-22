@@ -11,7 +11,7 @@ sh start_redis.sh
 ## Test
 
 ```Bash
-python main.py
+python test.py
 ```
 
 ## Clean Up
