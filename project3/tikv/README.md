@@ -2,7 +2,7 @@
 
 ## Set up Tikv cluster use TiUP
 
-Install TiUP by executing the following command:
+Install TiUP by run `start_tikv.sh` or executing the following command:
 
 ```Bash
 curl --proto '=https' --tlsv1.2 -sSf https://tiup-mirrors.pingcap.com/install.sh | sh
@@ -31,7 +31,13 @@ tiup update --self && tiup update playground
 Execute the following command to start a local TiKV cluster:
 
 ```Bash
-tiup playground --mode tikv-slim
+tiup playground --db 1 --pd 1 --kv 3
+```
+
+View information of the started cluster
+
+```Bash
+tiup playground display
 ```
 
 ## Write data to and read data from the TiKV cluster
@@ -73,9 +79,18 @@ tiup playground --mode tikv-slim
 
 - To stop the TiKV cluster, get back to the terminal session in which you have started the TiKV cluster. Press Ctrl + C and wait for the cluster to stop.
 
-- After the cluster is stopped, to delete the cluster, execute the following command:
+- After the cluster is stopped, to delete the cluster, run `reset_tikv.sh` or execute the following command:
 
   ```Bash
   tiup clean --all
+  ```
 
+- To uninstall tiup, run `uninstall_tikv.sh` or folloing command:
+
+  ```Bash
+  tiup uninstall --all
+  ```
+
+  ```Bash
+  tiup uninstall --self
   ```
