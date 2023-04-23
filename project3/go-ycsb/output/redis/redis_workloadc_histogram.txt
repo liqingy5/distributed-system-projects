@@ -1,0 +1,31 @@
+Using request distribution 'uniform' a keyrange of [0 499999]
+Setting redis.pool_size=8 (from <threadcount>) given you haven't specified a value.
+Using the redis datatype: hash
+***************** properties *****************
+"dotransactions"="true"
+"recordcount"="500000"
+"workload"="core"
+"threadcount"="8"
+"insertproportion"="0"
+"readproportion"="1"
+"requestdistribution"="uniform"
+"scanproportion"="0"
+"redis.addr"="192.168.0.12:8000"
+"readallfields"="true"
+"operationcount"="100000"
+"updateproportion"="0"
+"redis.datatype"="hash"
+"redis.mode"="cluster"
+"measurementtype"="histogram"
+"command"="run"
+**********************************************
+READ   - Takes(s): 10.0, Count: 28678, OPS: 2867.5, Avg(us): 2783, Min(us): 647, Max(us): 23871, 50th(us): 2033, 90th(us): 4767, 95th(us): 6375, 99th(us): 12871, 99.9th(us): 14911, 99.99th(us): 22799
+TOTAL  - Takes(s): 10.0, Count: 28678, OPS: 2867.9, Avg(us): 2783, Min(us): 647, Max(us): 23871, 50th(us): 2033, 90th(us): 4767, 95th(us): 6375, 99th(us): 12871, 99.9th(us): 14911, 99.99th(us): 22799
+READ   - Takes(s): 20.0, Count: 57976, OPS: 2898.7, Avg(us): 2753, Min(us): 566, Max(us): 23871, 50th(us): 2020, 90th(us): 4723, 95th(us): 6267, 99th(us): 12823, 99.9th(us): 14839, 99.99th(us): 22607
+TOTAL  - Takes(s): 20.0, Count: 57976, OPS: 2898.6, Avg(us): 2753, Min(us): 566, Max(us): 23871, 50th(us): 2020, 90th(us): 4723, 95th(us): 6267, 99th(us): 12823, 99.9th(us): 14839, 99.99th(us): 22607
+READ   - Takes(s): 30.0, Count: 83137, OPS: 2771.0, Avg(us): 2878, Min(us): 566, Max(us): 23871, 50th(us): 2109, 90th(us): 4923, 95th(us): 6783, 99th(us): 13351, 99.9th(us): 16415, 99.99th(us): 21839
+TOTAL  - Takes(s): 30.0, Count: 83137, OPS: 2771.0, Avg(us): 2878, Min(us): 566, Max(us): 23871, 50th(us): 2109, 90th(us): 4923, 95th(us): 6783, 99th(us): 13351, 99.9th(us): 16415, 99.99th(us): 21839
+**********************************************
+Run finished, takes 37.755169417s
+READ   - Takes(s): 37.8, Count: 100000, OPS: 2648.7, Avg(us): 3004, Min(us): 566, Max(us): 106047, 50th(us): 2171, 90th(us): 5103, 95th(us): 7467, 99th(us): 13767, 99.9th(us): 22559, 99.99th(us): 74239
+TOTAL  - Takes(s): 37.8, Count: 100000, OPS: 2648.8, Avg(us): 3004, Min(us): 566, Max(us): 106047, 50th(us): 2171, 90th(us): 5103, 95th(us): 7467, 99th(us): 13767, 99.9th(us): 22559, 99.99th(us): 74239
