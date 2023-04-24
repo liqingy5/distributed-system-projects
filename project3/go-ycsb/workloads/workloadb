@@ -5,11 +5,11 @@
 #   Read/update ratio: 95/5
 #   Default data size: 1 KB records (10 fields, 100 bytes each, plus key)
 #   Total data size: 500 MB
-#   Operation Count: 100,000
+#   Operation Count: 500,000
 #   Request distribution: uniform
 
 recordcount=500000
-operationcount=100000
+operationcount=500000
 workload=core
 
 readallfields=true
@@ -22,4 +22,4 @@ insertproportion=0
 requestdistribution=uniform
 threadcount=8
 
-measurementtype=raw
+measurementtype=histogram
