@@ -1,96 +1,50 @@
-# Tikv cluster
+# Tikv cluster (3 nodes)
 
-## Set up Tikv cluster use TiUP
+## Set up Tikv cluster
 
-Install TiUP by run `start_tikv.sh` or executing the following command:
-
-```Bash
-curl --proto '=https' --tlsv1.2 -sSf https://tiup-mirrors.pingcap.com/install.sh | sh
-```
-
-Set the TiUP environment variables:
-
-- Redeclare the global environment variables:
-
-  ```Bash
-  source ~/.bash_profile
-  ```
-
-- Confirm whether TiUP is installed:
-
-  ```Bash
-  tiup
-  ```
-
-Update the TiUP Playground component to the latest version
+First, we need to modify the `/etc/hosts' file so we can bind the hosts name to find to pd/tikv services
 
 ```Bash
-tiup update --self && tiup update playground
+sudo vim /etc/hosts
 ```
 
-Execute the following command to start a local TiKV cluster:
+Adding the folloing content into the file then save:
+
+```Console
+127.0.0.1  pd0
+127.0.0.1  pd1
+127.0.0.1  pd2
+127.0.0.1  tikv0
+127.0.0.1  tikv1
+127.0.0.1  tikv2
+```
+
+And then go back to directory `./tikv`, run
 
 ```Bash
-tiup playground --db 1 --pd 1 --kv 3
+sh start_tikb.sh
 ```
 
-View information of the started cluster
+## Test
 
 ```Bash
-tiup playground display
+python test.py
 ```
 
-## Write data to and read data from the TiKV cluster
+If showing error message:
 
-### Use Java
+```Console
+Exception: Leader of region 32 is not found
+```
 
-- Download the JAR files using the following commands: (Already include)
-  ```Bash
-  curl -o tikv-client-java.jar https://github.com/tikv/client-java/releases/download/v3.2.0-rc/tikv-client-java-3.2.0-SNAPSHOT.jar -L && \
-  curl -o slf4j-api.jar https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.16/slf4j-api-1.7.16.jar
-  ```
-- Install jshell. The JDK version should be 9.0 or later.
+It means tikv's leader is not available and is normal.
 
-- Try the RAW KV API.
+Wait a period of time (Like couple of seconds), and run the `test.py` again, the exception should gone
 
-  ```Bash
-  jshell --class-path tikv-client-java.jar:slf4j-api.jar --startup test_raw.java
+## Clean Up
 
-  ```
+Delete containers and volumes
 
-### Use Python
-
-- Install the tikv-client python package. (Already include in requirements.txt)
-
-  ```Bash
-  pip install tikv-client
-
-  ```
-
-- run tikv client driver
-
-  ```Bash
-  python test.py
-  ```
-
-- If showing error, try switch to rosetta terminal on MacOS or use python3-intel64 instead
-
-## Stop and Delete Tikv cluster
-
-- To stop the TiKV cluster, get back to the terminal session in which you have started the TiKV cluster. Press Ctrl + C and wait for the cluster to stop.
-
-- After the cluster is stopped, to delete the cluster, run `reset_tikv.sh` or execute the following command:
-
-  ```Bash
-  tiup clean --all
-  ```
-
-- To uninstall tiup, run `uninstall_tikv.sh` or folloing command:
-
-  ```Bash
-  tiup uninstall --all
-  ```
-
-  ```Bash
-  tiup uninstall --self
-  ```
+```Bash
+sh start_tikv.sh
+```

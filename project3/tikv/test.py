@@ -2,6 +2,8 @@ from tikv_client import RawClient
 
 client = RawClient.connect(["127.0.0.1:2379"])
 
+print(client)
+
 # put
 client.put(b"k1", b"Hello")
 client.put(b"k2", b",")

@@ -12,6 +12,8 @@ sh start_redis.sh
 
 ## Test
 
+Change the ip address to yours
+
 ```Bash
 python test.py
 ```

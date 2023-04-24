@@ -1,1 +1,1 @@
-tiup clean --all
+docker compose down && docker volume prune -f
