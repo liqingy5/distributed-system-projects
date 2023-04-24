@@ -1,1 +1,1 @@
-docker compose down && docker volume prune -f
+docker compose down && docker volume prune -f && rm -rf data logs
