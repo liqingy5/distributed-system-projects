@@ -46,5 +46,5 @@ Wait a period of time (Like couple of seconds), and run the `test.py` again, the
 Delete containers and volumes
 
 ```Bash
-sh start_tikv.sh
+sh reset_tikv.sh
 ```
