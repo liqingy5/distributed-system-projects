@@ -22,7 +22,7 @@ Adding the following content into the file then save:
 And then go back to directory `./tikv`, run
 
 ```Bash
-sh start_tikb.sh
+sh start_tikv.sh
 ```
 
 ## Test
