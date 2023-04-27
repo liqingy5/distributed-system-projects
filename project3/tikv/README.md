@@ -2,13 +2,13 @@
 
 ## Set up Tikv cluster
 
-First, we need to modify the `/etc/hosts' file so we can bind the hosts name to find to pd/tikv services
+First, we need to modify the `/etc/hosts' file so we can bind the hosts name to find pd/tikv services
 
 ```Bash
 sudo vim /etc/hosts
 ```
 
-Adding the folloing content into the file then save:
+Adding the following content into the file then save:
 
 ```Console
 127.0.0.1  pd0
