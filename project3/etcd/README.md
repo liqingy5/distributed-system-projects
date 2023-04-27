@@ -5,7 +5,7 @@ Etcd setting is referenced from [garutilorenzo](https://github.com/garutilorenzo
 ## Set up etcd cluster
 
 ```Bash
-sh start_redis.sh
+sh start_etcd.sh
 ```
 
 ## Test
@@ -19,5 +19,5 @@ python test.py
 Delete containers and volumes
 
 ```Bash
-sh reset_redis.sh
+sh reset_etcd.sh
 ```
